@@ -1,0 +1,8 @@
+{
+  "name": "理容師国家試験 問題集",
+  "short_name": "国家試験",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0f3f7a"
+}

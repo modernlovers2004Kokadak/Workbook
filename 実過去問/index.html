@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>理容師国家試験 過去問</title>
+<link rel="stylesheet" href="style.css">
+<style>.pass-result{font-size:34px;padding:14px 22px;border-radius:18px}.pass-result.passed{color:#087a51;background:#e9fbf4;border:1px solid #9be3c5}.pass-result.failed{color:#c52f52;background:#fff0f3;border:1px solid #f5b2c1}.correct-rate{margin:0;font-size:25px;color:#1768d4}.pass-note{margin:0;color:#536580;font-size:14px}.category-results{text-align:left;display:grid;gap:8px}.category-row{display:grid;grid-template-columns:1fr auto;gap:10px;border-bottom:1px solid #e7edf5;padding:8px 0}.fail-reasons{text-align:left;background:#fff7e8;border:1px solid #f2d39a;border-radius:14px;padding:14px}.fail-reasons h3{margin:0 0 8px}.fail-reasons ul{margin:0;padding-left:22px}@media(max-width:560px){.pass-result{font-size:30px}}</style>
+<style>.exam-timer{position:sticky;top:56px;z-index:9;padding:7px 16px;text-align:center;background:#eef5ff;color:#1768d4;border-bottom:1px solid #dbeafe;font-variant-numeric:tabular-nums}.exam-timer.caution{background:#fff7df;color:#8a5b00}.exam-timer.danger{background:#fff0f3;color:#b42343}</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="floating-nav"><button id="pastBack" class="floating-back" type="button" onclick="pastBack()" aria-label="戻る">‹</button><a class="floating-home" href="../index.html" aria-label="ホームへ戻る">⌂</a></div>
+<script src="data53.js"></script>
+<script src="dataPast.js"></script>
+<script src="dataPast40.js"></script>
+<script src="dataPast30.js"></script>
+<script src="dataPast24.js"></script>
+<script src="textOverlay.js"></script>
+<script>applyPastTextOverlay(EXAMS)</script>
+<script src="app.js"></script>
+</body>
+</html>

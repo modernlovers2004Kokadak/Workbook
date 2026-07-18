@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>理容師国家試験</title>
+<meta name="theme-color" content="#eaf5ff">
+<meta name="apple-mobile-web-app-title" content="国家試験">
+<meta name="application-name" content="国家試験">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="app-shell">
+  <header class="hero-top">
+    <div class="title-banner">
+      <span class="brand-mark"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 16c8-4 15-3 20 2v32c-5-5-12-6-20-2V16z"/><path d="M52 16c-8-4-15-3-20 2v32c5-5 12-6 20-2V16z"/></svg></span>
+      <span class="hero-title">理容師国家試験対策</span>
+    </div>
+  </header>
+
+  <section class="content">
+    <section class="hero-card" id="hero-card"></section>
+
+    <section class="entry-grid">
+      <a class="entry-card study" href="過去問/index.html?mode=today"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 16c8-4 15-3 20 2v32c-5-5-12-6-20-2V16z"/><path d="M52 16c-8-4-15-3-20 2v32c5-5 12-6 20-2V16z"/></svg></span><span class="entry-text"><span>今日の学習</span><small>21問</small></span><span class="arrow">›</span></a>
+      <a class="entry-card quiz" href="過去問/index.html?mode=category"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 10h24a5 5 0 0 1 5 5v39a5 5 0 0 1-5 5H20a5 5 0 0 1-5-5V15a5 5 0 0 1 5-5z"/><path d="M24 22h16M24 33h16M24 44h10" fill="none" stroke="#ff9a36" stroke-width="5" stroke-linecap="round"/></svg></span><span class="entry-text"><span>問題集</span><small id="problem-count-description">584問の独自問題</small></span><span class="arrow">›</span></a>
+    </section>
+
+    <section class="entry-grid entry-grid-secondary">
+      <a class="entry-card review" href="過去問/index.html#mistakes"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 10h24a4 4 0 0 1 4 4v42L32 46 16 56V14a4 4 0 0 1 4-4z"/><path d="M34 18l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6z" opacity=".35"/></svg></span><span class="entry-text"><span>要復習</span><small id="review-mini">0問</small></span><span class="arrow">›</span></a>
+      <a class="entry-card past" href="実過去問/index.html"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 12l7 13 15 2-11 10 3 15-14-7-14 7 3-15L10 27l15-2 7-13z"/></svg></span><span class="entry-text"><span>過去問</span><small>第29回～第53回の実過去問</small></span><span class="arrow">›</span></a>
+    </section>
+
+    <section class="category-card-list" id="category-card-list"></section>
+    <section class="weak-card" id="weak-card"></section>
+    <section class="reset-card" id="reset-card"></section>
+  </section>
+</main>
+
+<script src="過去問/data.js"></script>
+<script src="教材/data.js"></script>
+<script>
+const PREFIX='riyo_v05_';
+function storageGet(key){try{return localStorage.getItem(key)}catch(e){return null}}
+function storageSet(key,value){try{localStorage.setItem(key,value);return true}catch(e){return false}}
+function storageRemove(key){try{localStorage.removeItem(key);return true}catch(e){return false}}
+function safeJson(key,fallback,validate){const raw=storageGet(key);if(raw===null)return fallback;try{const value=JSON.parse(raw);return !validate||validate(value)?value:fallback}catch(e){return fallback}}
+const store={get:k=>safeJson(PREFIX+k,null,v=>v===null||(v&&typeof v==='object'&&!Array.isArray(v))),set:(k,v)=>storageSet(PREFIX+k,JSON.stringify(v))};
+const APP_VERSION='3.0.0';
+const MATERIAL_CATEGORY_NUMBERS=['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16'];
+const MATERIAL_IMPORTANT_ROWS=[
+  {source:0,label:'最重要条文',importance:'most',mark:'#d93025'},
+  {source:1,label:'重要条文',importance:'important',mark:'#ff5fa2'},
+  {source:2,label:'頻出条文',importance:'frequent',mark:'#ffd400'},
+  {source:3,label:'基本条文',importance:'basic',mark:'#bdbdbd'}
+];
+const MATERIAL_FIELD_ROWS=[
+  {label:'理容師法',source:3,group:'barber_act'},{label:'理容師法施行令',source:5,group:'order'},{label:'理容師法施行規則',source:4,group:'rules'},
+  {label:'感染症法',source:7,group:'infection'},{label:'地域保健法',source:8,group:'community'},{label:'健康増進法',source:9,group:'health_promotion_act'},
+  {label:'消費者基本法',source:10,group:'consumer'},{label:'出張理容・美容衛生管理要領',source:6,group:'visit'},
+  {label:'消毒法',source:12,field:'衛生管理',type:'disinfection',group:'disinfection'},
+  {label:'公衆衛生',source:12,field:'衛生管理',type:'public_health',group:'public_health'},
+  {label:'皮膚と毛髪',source:12,field:'保健',group:'skin'},{label:'香粧品成分',source:12,field:'香粧品化学',group:'cosmetics'},
+  {label:'理容文化史',source:12,field:'文化論',group:'history'},{label:'店舗管理',source:12,field:'運営管理',group:'shop'},
+  {label:'カッティング',source:12,field:'理容技術理論',type:'cut',group:'cut'},
+  {label:'シェービング',source:12,field:'理容技術理論',type:'shaving',group:'shaving'}
+];
+const GROUP_RULE={microbe:'disinfection',infection_control:'disinfection',environment:'public_health',health_promo:'public_health',hair:'skin',anatomy:'skin',nutrition:'skin',disease:'skin',surfactant:'cosmetics',perm:'cosmetics',cosmetic_safety:'cosmetics',ph:'cosmetics',color:'cosmetics',style:'history',design:'history',aesthetics:'history',customer:'shop',accounting:'shop',labor:'shop',complaint:'shop',store:'shop',commerce:'shop',shampoo:'cut',setting:'cut',tools:'cut'};
+function questionGroup(q){return GROUP_RULE[q.category]||q.category}
+function relatedQuestions(def){
+  if(def.importance==='most')return QUESTIONS.filter(q=>Number(q.importance||3)>=5);
+  if(def.importance==='important')return QUESTIONS.filter(q=>Number(q.importance||3)===4);
+  if(def.importance==='frequent')return QUESTIONS.filter(q=>Number(q.importance||3)===3);
+  if(def.importance==='basic')return QUESTIONS.filter(q=>Number(q.importance||3)<=2);
+  return QUESTIONS.filter(q=>questionGroup(q)===def.group);
+}
+function answeredIds(p){
+  const ids=new Set(Object.entries(p.answerStats||{}).filter(([,s])=>s&&Number(s.try)>0).map(([id])=>Number(id)));
+  Object.entries(p.done||{}).forEach(([id,value])=>{if(value)ids.add(Number(id))});
+  return ids;
+}
+function materialProgressHtml(items,answered){
+  const total=items.length,learned=items.filter(q=>answered.has(Number(q.id))).length,rate=pct(learned,total);
+  return `<div class="cat-progress"><div class="cat-progress-line"><em>関連問題 ${learned} / ${total}問 解答済み</em></div><div class="cat-progress-track"><i style="width:${rate}%"></i></div></div>`;
+}
+function materialRowHtml(def,index,type,answered,displayIndex=index){
+  const mark=type==='important'?'★':MATERIAL_CATEGORY_NUMBERS[displayIndex];
+  const href=`教材/index.html#material=${type}-${index}`;
+  const color=type==='important'?def.mark:'#1266c3';
+  return `<a class="material-law-row" href="${href}"><span class="material-num" style="background:${color}">${mark}</span><span class="material-main"><span class="material-title">${def.label}</span>${materialProgressHtml(relatedQuestions(def),answered)}</span><span class="material-go">›</span></a>`;
+}
+let openLawCategory=null;
+let openImportance=null;
+const escapeLawHtml=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+function formatLawSourceText(text){
+  const lines=String(text||'').replace(/\r\n?/g,'\n').split('\n').map(line=>line.trim());
+  const out=[];
+  for(const line of lines){
+    if(!line){if(out.length&&out[out.length-1]!==null)out.push(null);continue;}
+    if(!out.length||out[out.length-1]===null){out.push(line);continue;}
+    const prev=out[out.length-1];
+    const startsStructure=/^(?:（[^）]+）|第[一二三四五六七八九十百千0-9０-９]+条|[一二三四五六七八九十百千]+[ 　]|[0-9０-９]+[ 　])/.test(line);
+    if(/[。！？）]$/.test(prev)||startsStructure)out.push(line);else out[out.length-1]=prev+line;
+  }
+  return out.filter((line,i)=>line!==null||i>0&&out[i-1]!==null).map(line=>line===null?'':line);
+}
+const lawSourceHtml=text=>formatLawSourceText(text).map(line=>escapeLawHtml(line)).join('<br>');
+function lawEntries(def){
+  const map=new Map();
+  QUESTIONS.filter(q=>q.category===def.group&&typeof LAW_META!=='undefined'&&LAW_META[q.id]).forEach(q=>{
+    const meta=LAW_META[q.id],key=meta.reference||`問題${q.id}`;
+    if(!map.has(key))map.set(key,{reference:key,sources:[],points:[],explanations:[],questions:[]});
+    const entry=map.get(key);
+    if(meta.sourceText&&!entry.sources.includes(meta.sourceText))entry.sources.push(meta.sourceText);
+    (meta.examPoints||[]).forEach(point=>{if(point&&!entry.points.includes(point))entry.points.push(point)});
+    if(q.exp&&!entry.explanations.includes(q.exp))entry.explanations.push(q.exp);
+    entry.questions.push(q);
+  });
+  return [...map.values()];
+}
+function importanceQuestions(def){
+  return QUESTIONS.filter(q=>{
+    if(typeof LAW_META==='undefined'||!LAW_META[q.id])return false;
+    if(def.importance==='most')return Number(q.importance||3)>=5;
+    if(def.importance==='important')return Number(q.importance||3)===4;
+    if(def.importance==='frequent')return Number(q.importance||3)===3;
+    return Number(q.importance||3)<=2;
+  });
+}
+function importanceEntries(def){
+  const map=new Map();
+  importanceQuestions(def).forEach(q=>{
+    const meta=LAW_META[q.id],key=meta.reference||`問題${q.id}`;
+    if(!map.has(key))map.set(key,{reference:key,sources:[],points:[],explanations:[],questions:[]});
+    const entry=map.get(key);
+    if(meta.sourceText&&!entry.sources.includes(meta.sourceText))entry.sources.push(meta.sourceText);
+    (meta.examPoints||[]).forEach(point=>{if(point&&!entry.points.includes(point))entry.points.push(point)});
+    if(q.exp&&!entry.explanations.includes(q.exp))entry.explanations.push(q.exp);
+    entry.questions.push(q);
+  });
+  return [...map.values()];
+}
+function lawArticleHtml(entry,index){
+  return `<details class="top-law-article"${index===0?' open':''}><summary>${escapeLawHtml(entry.reference)}</summary><div class="top-law-article-body"><section class="top-law-block"><h4>条文全文</h4>${entry.sources.map(x=>`<p class="top-law-source">${lawSourceHtml(x)}</p>`).join('')}</section><section class="top-law-block"><h4>ポイント</h4><ul class="top-law-points">${entry.points.map(x=>`<li>${escapeLawHtml(x)}</li>`).join('')}</ul></section><section class="top-law-block"><h4>解説</h4>${entry.explanations.map(x=>`<p class="top-law-explain">${escapeLawHtml(x)}</p>`).join('')}</section><section class="top-law-block"><h4>関連問題</h4><div class="top-law-related">${entry.questions.map(q=>`<a href="過去問/index.html#question=${q.id}">問題${q.id}　${escapeLawHtml(q.q.split('\n')[0])}</a>`).join('')}</div></section></div></details>`;
+}
+function lawMaterialHtml(def,index,answered){
+  const entries=lawEntries(def),questions=relatedQuestions(def),open=openLawCategory===def.group;
+  return `<div class="top-law-unit"><a class="material-law-row top-law-toggle" href="#law=${def.group}" onclick="toggleLawCategory('${def.group}');return false" aria-expanded="${open}"><span class="material-num" style="background:#ff8a22">${index+1}</span><span class="material-main"><span class="material-title">${def.label}</span>${materialProgressHtml(questions,answered)}</span><span class="material-go">›</span></a>${open?`<div class="top-law-list">${entries.map(lawArticleHtml).join('')}</div>`:''}</div>`;
+}
+function importanceMaterialHtml(def,index,answered){
+  const entries=importanceEntries(def),open=openImportance===def.importance;
+  return `<div class="top-law-unit"><a class="material-law-row top-law-toggle" href="#importance=${def.importance}" onclick="toggleImportance('${def.importance}');return false" aria-expanded="${open}"><span class="material-num" style="background:${def.mark}">★</span><span class="material-main"><span class="material-title">${def.label}</span>${materialProgressHtml(relatedQuestions(def),answered)}</span><span class="material-go">›</span></a>${open?`<div class="top-law-list">${entries.map(lawArticleHtml).join('')}</div>`:''}</div>`;
+}
+function toggleLawCategory(group){openLawCategory=openLawCategory===group?null:group;renderMaterialCategories();}
+function toggleImportance(importance){openImportance=openImportance===importance?null:importance;renderMaterialCategories();}
+function renderMaterialCategories(){
+  const answered=answeredIds(prog());
+  const laws=MATERIAL_FIELD_ROWS.slice(0,8),nonLaws=MATERIAL_FIELD_ROWS.slice(8);
+  document.getElementById('category-card-list').innerHTML=`<h3 class="material-section-title">重要条文</h3>${MATERIAL_IMPORTANT_ROWS.map((d,i)=>importanceMaterialHtml(d,i,answered)).join('')}<h3 class="material-section-title">法令資料</h3>${laws.map((d,i)=>lawMaterialHtml(d,i,answered)).join('')}<h3 class="material-section-title">法令以外</h3>${nonLaws.map((d,i)=>materialRowHtml(d,i+8,'field',answered,i)).join('')}`;
+}
+
+function baseProg(){return{done:{},answerStats:{},history:[],mistakes:{},themeStats:{},catStats:{},daily:{},recentIds:[],recentThemes:[],mockStats:{pass:0,fail:0},scoreResetBase:{ok:0,ng:0},materialOk:{},settings:{todayCount:21,recentBlock:30,masterNeed:2}}}
+function prog(){return {...baseProg(),...(store.get('prog')||{})}}
+function pct(n,d){return d?Math.round(n/d*100):0}
+function localDateString(d=new Date()){const z=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`}
+function today(){return localDateString()}
+function lastNDays(n){const a=[];for(let i=0;i<n;i++){const d=new Date();d.setDate(d.getDate()-i);a.push(localDateString(d))}return a}
+function catQuestions(id){return QUESTIONS.filter(q=>q.category===id)}
+function rankCounts(list){return {
+  ss:list.filter(q=>q.importance>=5).length,
+  s:list.filter(q=>q.importance===4).length,
+  a:list.filter(q=>q.importance<=3).length
+}}
+function weaknessName(key){
+  const gid=String(key||'').split(':')[0];
+  const c=CATEGORIES.find(x=>x.id===gid);
+  return c ? c.name : '苦手テーマ';
+}
+function weaknessRows(p){
+  const rows=Object.entries(p.themeStats||{}).map(([k,s])=>{
+    const total=(s.ok||0)+(s.ng||0);
+    return {name:weaknessName(k), total, rate:pct(s.ok||0,total), ng:s.ng||0};
+  }).filter(x=>x.total>0 && x.ng>0)
+    .sort((a,b)=>(b.ng-a.ng)||(a.rate-b.rate))
+    .slice(0,3);
+  return rows;
+}
+
+function solvedIds(p){return new Set(Object.entries(p.answerStats||{}).filter(([id,s])=>s&&s.ok>0).map(([id])=>Number(id)))}
+function masteredIds(p){return new Set(Object.entries(p.answerStats||{}).filter(([id,s])=>s&&s.ok>=5).map(([id])=>Number(id)))}
+function solvedCountByCat(p,catId){const solved=solvedIds(p);return catQuestions(catId).filter(q=>solved.has(q.id)).length}
+function categoryProgressHtml(c,i,p){const total=catQuestions(c.id).length,done=solvedCountByCat(p,c.id),rate=pct(done,total);return `<div class="cat-progress"><div class="cat-progress-line"><em>${rate}%　${done} / ${total} 問 完了</em></div><div class="cat-progress-track"><i style="width:${rate}%"></i></div></div>`}
+function mockStatsText(p){const st={pass:0,fail:0,...((p&&p.mockStats)||{})};return `合格${st.pass||0}回/不合格${st.fail||0}回`}
+function scoreCounts(p){const h=p.history||[];return{ok:h.filter(x=>x.ok).length,ng:h.filter(x=>!x.ok).length}}
+function visibleScoreCounts(p){const c=scoreCounts(p),b={ok:0,ng:0,...(p.scoreResetBase||{})};return{ok:Math.max(0,c.ok-(b.ok||0)),ng:Math.max(0,c.ng-(b.ng||0))}}
+const STUDY_BACKUP_KEYS=['riyo_v05_prog','riyo_v05_mockProgress','riyoshi_past_exam_session_v1','riyoushi_9laws_final_done_v3','riyoushi_9laws_final_weak_v2','study_mode'];
+const STUDY_BACKUP_ID='国家試験学習データ';
+function backupFileName(){const d=new Date(),z=n=>String(n).padStart(2,'0');return `国家試験_学習データ_${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}.json`}
+function backupStudyData(){
+  const data={};
+  STUDY_BACKUP_KEYS.forEach(k=>{const v=storageGet(k);if(v!==null)data[k]=v});
+  const backup={format:STUDY_BACKUP_ID,version:1,createdAt:new Date().toISOString(),app:{name:'理容師国家試験対策',storage:'localStorage'},data};
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=backupFileName();document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function chooseRestoreFile(){document.getElementById('restore-file').click()}
+function restoreStudyData(input){
+  const file=input.files&&input.files[0];input.value='';if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    let backup;
+    try{backup=JSON.parse(reader.result)}catch(e){alert('このファイルは有効な学習データではありません。');return}
+    const jsonKeys=new Set(['riyo_v05_prog','riyo_v05_mockProgress','riyoshi_past_exam_session_v1','riyoushi_9laws_final_done_v3','riyoushi_9laws_final_weak_v2']);
+    const objectJsonKeys=new Set(['riyo_v05_prog','riyo_v05_mockProgress','riyoshi_past_exam_session_v1']);
+    const valid=backup&&backup.format===STUDY_BACKUP_ID&&backup.version===1&&backup.data&&typeof backup.data==='object'&&!Array.isArray(backup.data)&&Object.keys(backup.data).every(k=>STUDY_BACKUP_KEYS.includes(k)&&typeof backup.data[k]==='string'&&(!jsonKeys.has(k)||(()=>{try{const v=JSON.parse(backup.data[k]);return objectJsonKeys.has(k)?(v&&typeof v==='object'&&!Array.isArray(v)):Array.isArray(v)}catch(e){return false}})()));
+    if(!valid){alert('このファイルは有効な学習データではありません。');return}
+    if(!confirm('現在の学習データをバックアップデータで置き換えます。復元してよろしいですか？'))return;
+    const before={};STUDY_BACKUP_KEYS.forEach(k=>before[k]=storageGet(k));
+    try{
+      STUDY_BACKUP_KEYS.forEach(k=>{if(!storageRemove(k))throw new Error('storage')});
+      Object.entries(backup.data).forEach(([k,v])=>{if(!storageSet(k,v))throw new Error('storage')});
+    }catch(e){
+      STUDY_BACKUP_KEYS.forEach(k=>storageRemove(k));
+      Object.entries(before).forEach(([k,v])=>{if(v!==null)storageSet(k,v)});
+      alert('学習データを復元できませんでした。現在のデータは変更されていません。');return;
+    }
+    alert('学習データを復元しました。');location.reload();
+  };
+  reader.onerror=()=>alert('このファイルは有効な学習データではありません。');
+  reader.readAsText(file);
+}
+function resetStudyData(){if(!confirm('学習データを初期化します。正答・誤答・学習履歴・要復習・達成率が削除されます。問題データ・教材データは削除されません。よろしいですか？'))return;const p=prog();const next=baseProg();next.settings={...next.settings,...(p.settings||{})};store.set('prog',next);storageRemove('riyo_v05_mockProgress');storageRemove('riyoshi_past_exam_session_v1');renderProgress()}
+
+function renderProgress(){
+  const p=prog();
+  const done=solvedIds(p).size;
+  const h=p.history||[];
+  const ok=h.filter(x=>x.ok).length;
+  const masteredSet=masteredIds(p);
+  const reviewCount=Object.entries(p.mistakes||{}).filter(([id])=>!masteredSet.has(Number(id))).length;
+  const masteredCount=masteredSet.size;
+  const week=lastNDays(7).reduce((a,d)=>a+(p.daily?.[d]?.try||0),0);
+  const total=QUESTIONS.length;
+  const donePct=pct(done,total);
+  const correctPct=pct(ok,h.length);
+  const score=visibleScoreCounts(p);
+  const remain=Math.max(0,total-done);
+  document.getElementById('problem-count-description').textContent=`${total}問の独自問題`;
+  document.getElementById('review-mini').textContent=reviewCount+'問';
+  const masteredMini=document.getElementById('mastered-mini');
+  if(masteredMini)masteredMini.textContent=masteredCount+'問';
+  document.getElementById('hero-card').innerHTML=`
+    <div class="ring big" style="--p:${donePct}"><span>${donePct}%</span><small>正答達成率</small></div>
+    <div class="hero-info">
+      <h2>学習状況</h2>
+      <p>${remain?`100％達成まであと <span>${remain}問</span>`:'100％達成'}</p>
+      <div class="bar"><i style="width:${donePct}%"></i></div>
+      <div class="hero-numbers"><div>正答した問題<br><span>${done}問</span></div><div>全体<br><span>${total}問</span></div></div>
+    </div>`;
+  renderMaterialCategories();
+  const wr=weaknessRows(p);
+  document.getElementById('weak-card').innerHTML=`
+    <div class="section-head"><h2><span class="flame">◆</span>苦手ランキング</h2><a href="過去問/index.html#mistakes">すべて見る ›</a></div>
+    ${wr.length ? `<div class="weak-list">${wr.map((w,i)=>`<a class="weak-row" href="過去問/index.html#mistakes"><span class="rank r${i+1}">${i+1}</span><span>${w.name}</span><small>正答率 <em>${w.rate}%</em></small><span class="go">›</span></a>`).join('')}</div>` : `<div class="empty-weak">まだ苦手データがありません</div>`}`;
+  document.getElementById('reset-card').innerHTML=`<div class="reset-counts"><span>正答数：${score.ok}</span><span>誤答数：${score.ng}</span></div><div class="data-buttons"><button class="data-button" onclick="backupStudyData()">💾 バックアップ</button><button class="data-button" onclick="chooseRestoreFile()">📂 復元</button><button class="reset-button" onclick="resetStudyData()">初期化</button></div><input id="restore-file" class="restore-file" type="file" accept="application/json,.json" onchange="restoreStudyData(this)"><div class="app-version">Version ${APP_VERSION}</div>`;
+}
+function renderCategories(){}
+renderProgress();
+renderCategories();
+window.addEventListener('pageshow',()=>renderProgress());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')renderProgress();});
+window.addEventListener('storage',e=>{if(e.key===PREFIX+'prog')renderProgress();});
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>

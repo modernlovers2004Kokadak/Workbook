@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>理容師国家試験 教材</title>
+<meta name="theme-color" content="#07356f">
+<meta name="apple-mobile-web-app-title" content="国家試験">
+<meta name="application-name" content="国家試験">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css?v=7">
+</head>
+<body>
+<header class="app-header">
+  <div class="header-inner">
+    <h1>理容師国家試験 教材</h1>
+    <button id="searchBtn" class="icon-btn" aria-label="検索">🔍</button>
+  </div>
+  <div class="search-bar" id="searchBar">
+    <input id="searchInput" type="search" placeholder="教材から検索">
+  </div>
+</header>
+
+<main class="app">
+  <section id="home" class="screen active">
+
+    <section class="home-section">
+      <h2>教材一覧</h2><p id="materialCountDescription" class="legend">434項目</p>
+      <div id="lawList" class="law-list"></div>
+    </section>
+
+  </section>
+
+  <section id="lawScreen" class="screen">
+    <div class="screen-title">
+      <span aria-hidden="true"></span>
+      <h2 id="lawTitle"></h2>
+    </div>
+    <p class="legend"><span><i class="rank-dot dot-red"></i>最重要</span>　<span><i class="rank-dot" style="background:#ff5fa2"></i>重要</span>　<span><i class="rank-dot" style="background:#ffd400"></i>頻出</span>　<span><i class="rank-dot dot-gray"></i>基本</span></p>
+    <div id="articleList" class="article-list"></div>
+    <div id="fieldQuizCta" class="field-quiz-cta"></div>
+  </section>
+
+  <section id="searchScreen" class="screen">
+    <div class="screen-title">
+      <span aria-hidden="true"></span>
+      <h2>検索結果</h2>
+    </div>
+    <div id="searchResults"></div>
+  </section>
+</main>
+
+<section id="detail" class="detail hidden">
+  <div class="detail-header">
+    <span aria-hidden="true"></span>
+    <h2 id="detailTitle"></h2>
+  </div>
+  <article class="article-card">
+    <div class="law-name" id="detailLaw"></div>
+    <div class="article-top">
+      <span id="detailStars" class="stars"></span>
+    </div>
+    <section class="study-box text-section">
+      <span class="label blue">知識</span>
+      <div id="detailBody"></div>
+    </section>
+    <section class="study-box point-section">
+      <span class="label green">試験ポイント</span>
+      <ul id="detailPoints"></ul>
+    </section>
+    <section class="study-box point-section">
+      <span class="label orange">ひっかけポイント</span>
+      <ul id="detailTraps"></ul>
+    </section>
+    <section class="study-box point-section">
+      <span class="label gray">関連法令</span>
+      <div id="relatedLinks" class="related"></div>
+    </section>
+    <section id="detailQuizCta" class="study-box link-cta"></section>
+    <div class="article-nav">
+      <button id="prevBtn">‹ 前</button>
+      <button id="nextBtn">次 ›</button>
+    </div>
+  </article>
+</section>
+
+<script src="data.js?v=7"></script>
+<script src="script.js?v=7"></script>
+<script>
+(function(){
+  const CATEGORY_NUMBERS=['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16'];
+  const FIELD_ROWS=[
+    {label:'理容師法',source:3},
+    {label:'理容師法施行令',source:5},
+    {label:'理容師法施行規則',source:4},
+    {label:'感染症法',source:7},
+    {label:'地域保健法',source:8},
+    {label:'健康増進法',source:9},
+    {label:'消費者基本法',source:10},
+    {label:'出張理容・美容衛生管理要領',source:6},
+    {label:'消毒法',source:12,field:'衛生管理',type:'disinfection'},
+    {label:'公衆衛生',source:12,field:'衛生管理',type:'public_health'},
+    {label:'皮膚と毛髪',source:12,field:'保健'},
+    {label:'香粧品成分',source:12,field:'香粧品化学'},
+    {label:'理容文化史',source:12,field:'文化論'},
+    {label:'店舗管理',source:12,field:'運営管理'},
+    {label:'カッティング',source:12,field:'理容技術理論',type:'cut'},
+    {label:'シェービング',source:12,field:'理容技術理論',type:'shaving'}
+  ];
+  function percent(n,d){return d?Math.round(n/d*100):0;}
+  function cleanLabel(text){return String(text||'').replace(/（残り）/g,'').replace(/⑬\s*法令以外[／\s]*/g,'').replace(/法令以外[／\s]*/g,'');}
+  function itemsFor(def){
+    if(def.rank){
+      return DATA.flatMap((law,lawIndex)=>(law.articles||[]).map((item,article)=>({law:lawIndex,article,item}))).filter(x=>(x.item.importance||x.item.stars)===def.rank);
+    }
+    const law=DATA[def.source];
+    if(!law)return [];
+    return (law.articles||[]).map((item,article)=>({law:def.source,article,item})).filter(x=>{
+      const text=(x.item.category||'')+' '+(x.item.title||'');
+      if(def.field && !text.includes(def.field))return false;
+      if(def.type==='disinfection')return /消毒|洗浄|滅菌|煮沸|紫外線|エタノール|次亜塩素酸|逆性石けん/.test(text);
+      if(def.type==='public_health')return !/消毒|洗浄|滅菌|煮沸|紫外線|エタノール|次亜塩素酸|逆性石けん/.test(text);
+      if(def.type==='shaving')return /シェービング|レザー|順剃り|逆剃り|張り手/.test(text);
+      if(def.type==='cut')return !/シェービング|レザー|順剃り|逆剃り|張り手/.test(text);
+      return true;
+    });
+  }
+
+  function displayTitle(text){return String(text||'').replace(/^(最重要条文はこちら|重要条文はこちら|頻出条文はこちら|基本条文はこちら)\s*→\s*/,'');}
+  function progressHtml(items){
+    return '';
+  }
+  function sectionTitle(text){
+    const h=document.createElement('h3');
+    h.className='material-section-title';
+    h.textContent=text;
+    return h;
+  }
+  function setRow(row,num,label,progress){
+    const n=row.querySelector('.num');
+    const title=row.querySelector('.law-title');
+    const link=row.querySelector('.inline-quiz-link');
+    const main=row.querySelector('.law-main')||row;
+    const old=main.querySelector('.material-category-progress');
+    if(old)old.remove();
+    if(n)n.textContent=num;
+    if(title)title.textContent=label;
+    if(link)link.remove();
+    row.querySelectorAll(':scope > .law-meta').forEach(el=>el.remove());
+    const meta=main.querySelector('.law-meta');
+    if(meta)meta.remove();
+    if(progress){
+      const box=document.createElement('div');
+      box.className='material-category-progress';
+      box.innerHTML=progress;
+      main.appendChild(box);
+    }
+    return row;
+  }
+  function renderImportantArticles(def){
+    currentLaw=def.source;
+    document.getElementById('lawTitle').textContent=def.label;
+    const list=document.getElementById('articleList');
+    list.innerHTML='';
+    itemsFor(def).forEach(x=>{
+      const row=document.createElement('div');
+      row.className='article-row';
+      row.innerHTML=`<span class="article-title">${displayTitle(x.item.title)}</span><span class="stars">${rankBadge(x.item.importance||x.item.stars)} ›</span>`;
+      row.addEventListener('click',()=>openDetail(x.law,x.article));
+      list.appendChild(row);
+    });
+    const cta=document.getElementById('fieldQuizCta');
+    if(cta)cta.innerHTML='';
+    show('lawScreen');
+  }
+  function renderFieldArticles(def){
+    currentLaw=def.source;
+    document.getElementById('lawTitle').textContent=def.label;
+    const list=document.getElementById('articleList');
+    list.innerHTML='';
+    itemsFor(def).forEach(x=>{
+      const row=document.createElement('div');
+      row.className='article-row';
+      row.innerHTML=`<span class="article-title">${displayTitle(x.item.title)}</span><span class="stars">${rankBadge(x.item.importance||x.item.stars)} ›</span>`;
+      row.addEventListener('click',()=>{if(x.item.redirect){openDetail(x.item.redirect.law,x.item.redirect.article)}else{openDetail(x.law,x.article)}});
+      list.appendChild(row);
+    });
+    const cta=document.getElementById('fieldQuizCta');
+    if(cta)cta.innerHTML=quizCtaHtml(def.source,null,'問題');
+    show('lawScreen');
+  }
+  function organizeMaterialList(){
+    const list=document.getElementById('lawList');
+    if(!list)return;
+    const original=[...list.querySelectorAll('.law-row')];
+    if(!original.length)return;
+    list.innerHTML='';
+    list.appendChild(sectionTitle('重要条文'));
+    [
+      {source:0,label:'最重要条文'},
+      {source:1,label:'重要条文'},
+      {source:2,label:'頻出条文'},
+      {source:3,label:'基本',rank:'★★'}
+    ].forEach(def=>{
+      const base=original[def.source];
+      if(!base)return;
+      const row=base.cloneNode(true);
+      setRow(row,'★',def.label,progressHtml(itemsFor(def)));
+      const mark=row.querySelector('.num');
+      if(mark && def.source===0)mark.style.background='#d93025';
+      if(mark && def.source===1)mark.style.background='#ff5fa2';
+      if(mark && def.source===2)mark.style.background='#ffd400';
+      if(mark && def.rank==='★★')mark.style.background='#bdbdbd';
+      row.addEventListener('click',()=>renderImportantArticles(def));
+      list.appendChild(row);
+    });
+    list.appendChild(sectionTitle('分野別教材'));
+    FIELD_ROWS.forEach((def,i)=>{
+      const base=original[def.source];
+      if(!base)return;
+      const row=base.cloneNode(true);
+      setRow(row,CATEGORY_NUMBERS[i],def.label,progressHtml(itemsFor(def)));
+      row.addEventListener('click',()=>renderFieldArticles(def));
+      list.appendChild(row);
+    });
+  }
+  if(typeof renderHome==='function'){
+    const originalRenderHome=renderHome;
+    renderHome=function(){
+      originalRenderHome.apply(this,arguments);
+      organizeMaterialList();
+    };
+  }
+  if(typeof openDetail==='function'){
+    const originalOpenDetail=openDetail;
+    openDetail=function(){
+      originalOpenDetail.apply(this,arguments);
+      const law=document.getElementById('detailLaw');
+      if(law)law.textContent=cleanLabel(law.textContent);
+    };
+  }
+  function openMaterialFromHash(){
+    const hash=decodeURIComponent(location.hash||'');
+    const match=hash.match(/material=(important|field)-(\d+)/);
+    if(!match)return;
+    const index=Number(match[2]);
+    if(match[1]==='important'){
+      const defs=[
+        {source:0,label:'最重要条文'},
+        {source:1,label:'重要条文'},
+        {source:2,label:'頻出条文'},
+        {source:3,label:'基本条文',rank:'★★'}
+      ];
+      if(defs[index])renderImportantArticles(defs[index]);
+      return;
+    }
+    if(FIELD_ROWS[index])renderFieldArticles(FIELD_ROWS[index]);
+  }
+  organizeMaterialList();
+  openMaterialFromHash();
+})();
+</script>
+<div class="floating-nav"><button id="materialBack" class="floating-back" type="button" onclick="materialBack()" aria-label="戻る">‹</button><a class="floating-home" href="../index.html" aria-label="ホームへ戻る">⌂</a></div>
+</body>
+</html>
