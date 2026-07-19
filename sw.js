@@ -1,6 +1,6 @@
 const ICON_CACHE_REV='20260719-1';
 const CACHE_PREFIX='riyoshi-integrated-';
-const CACHE=CACHE_PREFIX+'v3-0-0-problem-r4';
+const CACHE=CACHE_PREFIX+'v3-0-0-problem-r5';
 const ASSETS=['./','./index.html','./style.css','./manifest.webmanifest','./icon-180.png','./icon-192.png','./icon-512.png','./過去問/index.html','./過去問/style.css','./過去問/app.js','./過去問/data.js','./過去問/manifest.webmanifest','./教材/index.html','./教材/style.css','./教材/script.js','./教材/data.js','./教材/manifest.json','./実過去問/index.html','./実過去問/style.css','./実過去問/data53.js','./実過去問/dataPast.js','./実過去問/dataPast40.js','./実過去問/dataPast30.js','./実過去問/dataPast24.js','./実過去問/app.js','./実過去問/textOverlay.js','./実過去問/images/53-q42.png','./実過去問/images/53-q46.png','./実過去問/images/29/q45.webp','./実過去問/images/32/q31.webp','./実過去問/images/34/q31.webp','./実過去問/images/34/q41.webp','./実過去問/images/34/q45.webp','./実過去問/images/34/q48.webp','./実過去問/images/35/q45.webp','./実過去問/images/37/q31.webp','./実過去問/images/38/q41.webp','./実過去問/images/39/q43.webp','./実過去問/images/41o/q43.webp','./実過去問/images/43n/q44.webp','./実過去問/images/43o/q44.webp','./実過去問/images/47/q44.webp','./実過去問/images/50/q53.webp','./実過去問/images/51/q42.webp','./実過去問/images/52/q44.webp','./実過去問/images/52/q46.webp'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).catch(()=>{}));self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith(CACHE_PREFIX)&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
