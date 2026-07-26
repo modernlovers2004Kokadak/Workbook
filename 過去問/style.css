@@ -146,5 +146,27 @@ h1,h2,h3,h4,.law .grow>span,.qtext,.importance-badge{font-weight:400!important}
 .answer .law-detail.memory-guide ul{margin:6px 0 0;padding-left:1.4em}
 .mock-category-results{display:grid;gap:0;margin-top:16px}.mock-category-results p{margin:0;padding:9px 0;border-bottom:1px solid #e3eaf3}.mock-fail-reasons{margin-top:16px;padding:14px;border:1px solid #f0cf91;border-radius:14px;background:#fff7e8}.mock-fail-reasons h3{margin:0 0 8px}.mock-fail-reasons ul{margin:0;padding-left:22px}
 .review-matrix{display:grid;grid-template-columns:minmax(8em,auto) 1fr;gap:0;border:1px solid #d9e2ef;border-radius:12px;overflow:hidden}.review-matrix dt,.review-matrix dd{margin:0;padding:9px 10px;border-bottom:1px solid #e5ebf3}.review-matrix dt{font-weight:800;background:#f2f6fb}.review-matrix dd{background:#fff}.review-matrix dt:last-of-type,.review-matrix dd:last-of-type{border-bottom:0}@media(max-width:560px){.review-matrix{grid-template-columns:1fr}.review-matrix dt{border-bottom:0}.review-matrix dd{border-bottom:1px solid #e5ebf3}}
-.mock-timer{position:sticky;top:56px;z-index:9;padding:7px 16px;text-align:center;background:#eef5ff;color:#1768d4;border-bottom:1px solid #dbeafe;font-variant-numeric:tabular-nums}.mock-timer.caution{background:#fff7df;color:#8a5b00}.mock-timer.danger{background:#fff0f3;color:#b42343}
 .problem-description{text-align:center;color:#66758a}.summary-item.sm-blue em{font-size:12px;line-height:1.4}
+
+/* 「今日の10語」準拠：全問題表示経路の出題画面 */
+.unified-question{background:#f6faff;color:#10233f;padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+.unified-question .top{background:#073d86}
+.unified-question .questionContent{padding:14px 12px calc(110px + env(safe-area-inset-bottom))}
+.unified-question .questionContent.withResult{padding-top:72px}
+.unified-question .question-progress{height:7px;margin:0 0 12px;border-radius:0;background:#e7ebf2;overflow:hidden}
+.unified-question .question-progress i{display:block;height:100%;background:#2580ed}
+.unified-question .qcard{border:2px solid #2580ed;border-radius:24px;background:#f6faff;box-shadow:0 6px 16px rgba(16,35,63,.10);padding:18px 16px}
+.unified-question .question-card:before{display:none}
+.unified-question .qmeta{padding-right:2px;color:#66738a;font-size:14px;line-height:1.4}
+.unified-question .qtext{margin:20px 0;font-size:18px;line-height:1.7;overflow-wrap:anywhere;word-break:normal}
+.unified-question .choice{min-height:52px;margin:9px 0;border:1px solid #2580ed;border-radius:14px;background:linear-gradient(135deg,#3fa9f5 0%,#246de1 100%);padding:13px 14px;color:#fff;font-size:16px;line-height:1.55;overflow-wrap:anywhere;word-break:normal}
+.unified-question .choice.sel{border-color:#2580ed;background:#edf6ff}
+.unified-question .choice.ok{border-color:#24a86b;background:#eaf9f1;color:#10233f}
+.unified-question .choice.ng{border-color:#dc5570;background:#fff0f3;color:#10233f}
+.unified-question .answer{margin-bottom:0}
+.unified-question .answer h2{font-size:18px;line-height:1.4}
+.unified-question .answer details,.unified-question .answer p,.unified-question .answer li,.unified-question .memo{font-size:16px;line-height:1.7;overflow-wrap:anywhere}
+.unified-question .fixedNext{padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid #c9d8ee;background:#f6faff;box-shadow:0 -6px 18px rgba(16,35,63,.12)}
+.unified-question .fixedNext button,.unified-question .fixedNext button.nextBtn{min-height:50px;border:1px solid #2580ed;border-radius:12px;background:linear-gradient(135deg,#3fa9f5 0%,#246de1 100%);font-size:16px}
+.unified-question .bottom{display:none}
+@media(max-width:560px){.unified-question .questionContent{padding-right:11px;padding-left:11px}.unified-question .qcard{padding:16px 14px}.unified-question .choice{font-size:16px}}

@@ -14,6 +14,6 @@
 <script>
 if ('serviceWorker' in navigator) { window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{})); }
 </script>
-<div class="floating-nav"><button id="problemBack" class="floating-back" type="button" onclick="appBack()" aria-label="戻る">‹</button><a class="floating-home" href="../index.html" aria-label="ホームへ戻る">⌂</a></div>
+<div class="floating-nav"><button id="problemBack" class="floating-back" type="button" onclick="appBack()" aria-label="戻る">‹</button><button class="floating-home" type="button" onclick="appHome()" aria-label="ホームへ戻る">⌂</button></div>
 </body>
 </html>
