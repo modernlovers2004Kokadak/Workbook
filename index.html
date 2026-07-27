@@ -25,13 +25,13 @@
     <section class="hero-card" id="hero-card"></section>
 
     <section class="entry-grid">
-      <a class="entry-card study" href="過去問/index.html?mode=today"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 16c8-4 15-3 20 2v32c-5-5-12-6-20-2V16z"/><path d="M52 16c-8-4-15-3-20 2v32c5-5 12-6 20-2V16z"/></svg></span><span class="entry-text"><span>今日の学習</span><small>21問</small></span><span class="arrow">›</span></a>
-      <a class="entry-card quiz" href="過去問/index.html?mode=category"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 10h24a5 5 0 0 1 5 5v39a5 5 0 0 1-5 5H20a5 5 0 0 1-5-5V15a5 5 0 0 1 5-5z"/><path d="M24 22h16M24 33h16M24 44h10" fill="none" stroke="#ff9a36" stroke-width="5" stroke-linecap="round"/></svg></span><span class="entry-text"><span>問題集</span><small id="problem-count-description">584問の独自問題</small></span><span class="arrow">›</span></a>
+      <a class="entry-card study" href="分野別問題/index.html?mode=today"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 16c8-4 15-3 20 2v32c-5-5-12-6-20-2V16z"/><path d="M52 16c-8-4-15-3-20 2v32c5-5 12-6 20-2V16z"/></svg></span><span class="entry-text"><span>今日の学習</span><small>21問</small></span><span class="arrow">›</span></a>
+      <a class="entry-card quiz" href="分野別問題/index.html?mode=category"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 10h24a5 5 0 0 1 5 5v39a5 5 0 0 1-5 5H20a5 5 0 0 1-5-5V15a5 5 0 0 1 5-5z"/><path d="M24 22h16M24 33h16M24 44h10" fill="none" stroke="#ff9a36" stroke-width="5" stroke-linecap="round"/></svg></span><span class="entry-text"><span>問題集</span><small id="problem-count-description">584問の独自問題</small></span><span class="arrow">›</span></a>
     </section>
 
     <section class="entry-grid entry-grid-secondary">
-      <a class="entry-card review" href="過去問/index.html#mistakes"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 10h24a4 4 0 0 1 4 4v42L32 46 16 56V14a4 4 0 0 1 4-4z"/><path d="M34 18l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6z" opacity=".35"/></svg></span><span class="entry-text"><span>要復習</span><small id="review-mini">0問</small></span><span class="arrow">›</span></a>
-      <a class="entry-card past" href="実過去問/index.html"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 12l7 13 15 2-11 10 3 15-14-7-14 7 3-15L10 27l15-2 7-13z"/></svg></span><span class="entry-text"><span>過去問</span><small>第29回～第53回の実過去問</small></span><span class="arrow">›</span></a>
+      <a class="entry-card review" href="分野別問題/index.html#mistakes"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 10h24a4 4 0 0 1 4 4v42L32 46 16 56V14a4 4 0 0 1 4-4z"/><path d="M34 18l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6z" opacity=".35"/></svg></span><span class="entry-text"><span>要復習</span><small id="review-mini">0問</small></span><span class="arrow">›</span></a>
+      <a class="entry-card past" href="国家試験過去問/index.html"><span class="entry-ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 12l7 13 15 2-11 10 3 15-14-7-14 7 3-15L10 27l15-2 7-13z"/></svg></span><span class="entry-text"><span>過去問</span><small>第29回～第53回の実過去問</small></span><span class="arrow">›</span></a>
     </section>
 
     <section class="category-card-list" id="category-card-list"></section>
@@ -40,8 +40,8 @@
   </section>
 </main>
 
-<script src="過去問/data.js"></script>
-<script src="教材/data.js"></script>
+<script src="分野別問題/data.js"></script>
+<script src="学習資料/data.js"></script>
 <script>
 const PREFIX='riyo_v05_';
 function storageGet(key){try{return localStorage.getItem(key)}catch(e){return null}}
@@ -88,7 +88,7 @@ function materialProgressHtml(items,answered){
 }
 function materialRowHtml(def,index,type,answered,displayIndex=index){
   const mark=type==='important'?'★':MATERIAL_CATEGORY_NUMBERS[displayIndex];
-  const href=`教材/index.html#material=${type}-${index}`;
+  const href=`学習資料/index.html#material=${type}-${index}`;
   const color=type==='important'?def.mark:'#1266c3';
   return `<a class="material-law-row" href="${href}"><span class="material-num" style="background:${color}">${mark}</span><span class="material-main"><span class="material-title">${def.label}</span>${materialProgressHtml(relatedQuestions(def),answered)}</span><span class="material-go">›</span></a>`;
 }
@@ -144,7 +144,7 @@ function importanceEntries(def){
   return [...map.values()];
 }
 function lawArticleHtml(entry,index){
-  return `<details class="top-law-article"${index===0?' open':''}><summary>${escapeLawHtml(entry.reference)}</summary><div class="top-law-article-body"><section class="top-law-block"><h4>条文全文</h4>${entry.sources.map(x=>`<p class="top-law-source">${lawSourceHtml(x)}</p>`).join('')}</section><section class="top-law-block"><h4>ポイント</h4><ul class="top-law-points">${entry.points.map(x=>`<li>${escapeLawHtml(x)}</li>`).join('')}</ul></section><section class="top-law-block"><h4>解説</h4>${entry.explanations.map(x=>`<p class="top-law-explain">${escapeLawHtml(x)}</p>`).join('')}</section><section class="top-law-block"><h4>関連問題</h4><div class="top-law-related">${entry.questions.map(q=>`<a href="過去問/index.html#question=${q.id}">問題${q.id}　${escapeLawHtml(q.q.split('\n')[0])}</a>`).join('')}</div></section></div></details>`;
+  return `<details class="top-law-article"${index===0?' open':''}><summary>${escapeLawHtml(entry.reference)}</summary><div class="top-law-article-body"><section class="top-law-block"><h4>条文全文</h4>${entry.sources.map(x=>`<p class="top-law-source">${lawSourceHtml(x)}</p>`).join('')}</section><section class="top-law-block"><h4>ポイント</h4><ul class="top-law-points">${entry.points.map(x=>`<li>${escapeLawHtml(x)}</li>`).join('')}</ul></section><section class="top-law-block"><h4>解説</h4>${entry.explanations.map(x=>`<p class="top-law-explain">${escapeLawHtml(x)}</p>`).join('')}</section><section class="top-law-block"><h4>関連問題</h4><div class="top-law-related">${entry.questions.map(q=>`<a href="分野別問題/index.html#question=${q.id}">問題${q.id}　${escapeLawHtml(q.q.split('\n')[0])}</a>`).join('')}</div></section></div></details>`;
 }
 function lawMaterialHtml(def,index,answered){
   const entries=lawEntries(def),questions=relatedQuestions(def),open=openLawCategory===def.group;
@@ -263,8 +263,8 @@ function renderProgress(){
   renderMaterialCategories();
   const wr=weaknessRows(p);
   document.getElementById('weak-card').innerHTML=`
-    <div class="section-head"><h2><span class="flame">◆</span>苦手ランキング</h2><a href="過去問/index.html#mistakes">すべて見る ›</a></div>
-    ${wr.length ? `<div class="weak-list">${wr.map((w,i)=>`<a class="weak-row" href="過去問/index.html#mistakes"><span class="rank r${i+1}">${i+1}</span><span>${w.name}</span><small>正答率 <em>${w.rate}%</em></small><span class="go">›</span></a>`).join('')}</div>` : `<div class="empty-weak">まだ苦手データがありません</div>`}`;
+    <div class="section-head"><h2><span class="flame">◆</span>苦手ランキング</h2><a href="分野別問題/index.html#mistakes">すべて見る ›</a></div>
+    ${wr.length ? `<div class="weak-list">${wr.map((w,i)=>`<a class="weak-row" href="分野別問題/index.html#mistakes"><span class="rank r${i+1}">${i+1}</span><span>${w.name}</span><small>正答率 <em>${w.rate}%</em></small><span class="go">›</span></a>`).join('')}</div>` : `<div class="empty-weak">まだ苦手データがありません</div>`}`;
   document.getElementById('reset-card').innerHTML=`<div class="reset-counts"><span>正答数：${score.ok}</span><span>誤答数：${score.ng}</span></div><div class="data-buttons"><button class="data-button" onclick="backupStudyData()">💾 バックアップ</button><button class="data-button" onclick="chooseRestoreFile()">📂 復元</button><button class="reset-button" onclick="resetStudyData()">初期化</button></div><input id="restore-file" class="restore-file" type="file" accept="application/json,.json" onchange="restoreStudyData(this)"><div class="app-version">Version ${APP_VERSION}</div>`;
 }
 function renderCategories(){}
