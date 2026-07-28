@@ -1,5 +1,5 @@
 const CACHE_PREFIX='riyoshi-lawbook-';
-const CACHE=CACHE_PREFIX+'v4-0-16';
+const CACHE=CACHE_PREFIX+'v4-0-19';
 const LEGACY_CACHE_PREFIXES=['riyo-kakomon-','riyoushi-9laws-final-'];
 const ASSETS=['./','./index.html','./style.css','./app.js','./lawArticleData.js','./commercialLawData.js','./manifest.webmanifest','./icon-180.png','./icon-192.png','./icon-512.png','./分野別問題/data.js'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));self.skipWaiting()});

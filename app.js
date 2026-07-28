@@ -158,7 +158,7 @@ function restoreNavigationState(saved){
 }
 function head(title){return `<div class="view-head"><span></span><h2>${esc(title)}</h2><span></span></div>`}
 function renderHome(){
-  setScreen('home');const all=totalStats(),rate=all.total?Math.round(all.correct/all.total*100):0,lawStats=statsForGroup('law'),nonLawStats=statsForGroup('non_law');
+  setScreen('home');const all=totalStats(),rate=all.total?Math.round(all.correct/all.total*100):0,lawStats=statsForGroup('law'),nonLawStats=statsForGroup('non_law'),daily=todaySessionState(),todayTitle=daily.completed?'本日完了':'今日の10問',todayCaption=daily.completed?`本日 ${daily.completedTotal}問 解答済み`:daily.total?`${daily.answered}／${daily.total}問 解答済み`:'毎日の法令確認';
   app.innerHTML=`<section class="home-card progress-card">
     <div class="lap-count">${lapLabel(roundNumber())}</div>
     <div class="progress-ring" style="--rate:${rate}%"><span>${rate}%</span></div>
@@ -166,7 +166,7 @@ function renderHome(){
       ${progressBarHtml('法令問題',lawStats)}
       ${progressBarHtml('法令以外',nonLawStats)}
     </div></section>
-    <div class="today-wrap"><button class="today-start" onclick="LawBook.startToday()"><span class="check">✓</span><span><strong>今日の10問</strong><small>毎日の法令確認</small></span></button><button class="today-bookmarks" onclick="LawBook.openBookmarks()"><span>🔖</span><span class="count">${bookmarks.size}</span></button></div>
+    <div class="today-wrap"><button class="today-start" onclick="LawBook.startToday()"><span class="check">✓</span><span><strong>${todayTitle}</strong><small>${todayCaption}</small></span></button><button class="today-bookmarks" onclick="LawBook.openBookmarks()"><span>🔖</span><span class="count">${bookmarks.size}</span></button></div>
     ${lawGroupHtml('法令一覧','law')}
     ${lawGroupHtml('法令以外','non_law')}
     <section class="utility-actions"><button onclick="LawBook.exportBackup()">バックアップを書き出す</button><button onclick="document.getElementById('backupInput').click()">バックアップを読み込む</button><input id="backupInput" type="file" accept="application/json,.json" hidden onchange="LawBook.importBackup(this.files[0]);this.value=''"></section>
@@ -292,6 +292,19 @@ function openArticle(index,from='law'){articleIndex=index;returnScreen=from;setS
   <nav class="article-navigation" aria-label="条文の移動"><button onclick="LawBook.moveArticle(-1)" ${index===0?'disabled':''}>＜前へ</button><button class="article-question-button" onclick="LawBook.startRelated()" ${a.questionIds.length?'':'disabled'}>問題へ</button><button onclick="LawBook.moveArticle(1)" ${index===law.articles.length-1?'disabled':''}>次へ＞</button></nav>`}
 function moveArticle(step){const next=articleIndex+step;if(next>=0&&next<laws[lawIndex].articles.length)openArticle(next,returnScreen)}
 function statusOf(q){const s=prog.answerStats?.[q.id];if(!s||!s.try)return'unlearned';return latest(q)==='wrong'?'review':'safe'}
+function todaySessionState(){
+  const raw=readJson(TODAY_KEY,{}),validDate=raw.date===today(),ids=validDate&&Array.isArray(raw.ids)?raw.ids.map(Number).filter(id=>qById.has(id)).slice(0,10):[],completedIds=validDate&&Array.isArray(raw.completedIds)?Array.from(new Set(raw.completedIds.map(Number).filter(id=>qById.has(id)&&!ids.includes(id)))):[],answers={};
+  ids.forEach(id=>{const answer=raw.answers?.[id];if(answer&&Number.isInteger(answer.choice)&&typeof answer.ok==='boolean')answers[id]={choice:answer.choice,ok:answer.ok}});
+  const answered=ids.filter(id=>answers[id]).length;
+  return{date:raw.date,ids,completedIds,answers,index:Math.max(0,Math.min(ids.length-1,Number(raw.index)||0)),answered,total:ids.length,completed:ids.length>0&&answered===ids.length,completedTotal:completedIds.length+answered};
+}
+function saveTodaySession(){
+  if(sessionSource!=='today')return;
+  const current=todaySessionState(),ids=session.map(q=>q.id),answers={};
+  ids.forEach(id=>{const answer=sessionAnswers[id];if(answer&&Number.isInteger(answer.choice)&&typeof answer.ok==='boolean')answers[id]={choice:answer.choice,ok:answer.ok}});
+  const answered=ids.filter(id=>answers[id]).length;
+  writeJson(TODAY_KEY,{date:today(),ids,completedIds:current.completedIds,answers,index:sessionIndex,completed:ids.length>0&&answered===ids.length});
+}
 function pickToday(){
   const old=readJson(TODAY_KEY,{});if(old.date===today()&&Array.isArray(old.ids)&&old.ids.some(id=>qById.has(Number(id))))return old.ids.map(Number).filter(id=>qById.has(id)).slice(0,10);
   const previous=new Set(Array.isArray(old.ids)?old.ids.map(Number):[]),picked=[],used=new Set(),add=q=>{if(q&&picked.length<10&&!used.has(q.id)){picked.push(q.id);used.add(q.id)}};
@@ -299,9 +312,26 @@ function pickToday(){
   shuffle(LAW_QUESTIONS.filter(q=>!previous.has(q.id)&&statusOf(q)==='review')).forEach(add);
   shuffle(LAW_QUESTIONS.filter(q=>!previous.has(q.id)&&statusOf(q)==='safe')).slice(0,2).forEach(add);
   shuffle(LAW_QUESTIONS.filter(q=>!used.has(q.id))).forEach(add);
-  writeJson(TODAY_KEY,{date:today(),ids:picked,answers:{}});return picked;
+  writeJson(TODAY_KEY,{date:today(),ids:picked,completedIds:[],answers:{},index:0,completed:false});return picked;
 }
-function startToday(){startSession(pickToday(),'today','home')}
+function startToday(){
+  const ids=pickToday(),saved=todaySessionState();
+  session=ids.map(Number).map(id=>qById.get(id)).filter(Boolean);if(!session.length){alert('対象の問題はありません。');return}
+  sessionAnswers={...saved.answers};sessionSource='today';returnScreen='home';answerNoticeId=null;
+  const firstUnanswered=session.findIndex(q=>!sessionAnswers[q.id]);
+  sessionIndex=firstUnanswered>=0?firstUnanswered:Math.max(0,Math.min(session.length-1,saved.index));
+  if(firstUnanswered<0)renderResult();else renderQuestion();
+}
+function startNextToday(){
+  const current=todaySessionState(),completedIds=Array.from(new Set([...current.completedIds,...current.ids])),excluded=new Set(completedIds),picked=[],used=new Set(completedIds),add=q=>{if(q&&picked.length<10&&!used.has(q.id)){picked.push(q.id);used.add(q.id)}};
+  shuffle(LAW_QUESTIONS.filter(q=>!excluded.has(q.id)&&statusOf(q)==='unlearned')).forEach(add);
+  shuffle(LAW_QUESTIONS.filter(q=>!excluded.has(q.id)&&statusOf(q)==='review')).forEach(add);
+  shuffle(LAW_QUESTIONS.filter(q=>!excluded.has(q.id)&&statusOf(q)==='safe')).forEach(add);
+  if(!picked.length){alert('本日の対象問題はすべて完了しました。');return}
+  writeJson(TODAY_KEY,{date:today(),ids:picked,completedIds,answers:{},index:0,completed:false});
+  startToday();
+}
+function hasNextTodaySet(){const current=todaySessionState(),excluded=new Set([...current.completedIds,...current.ids]);return LAW_QUESTIONS.some(q=>!excluded.has(q.id))}
 function startRelated(){const ids=laws[lawIndex].articles[articleIndex].questionIds;startSession(ids,'related','article')}
 function startSession(ids,source='today',backTo='home'){
   session=ids.map(Number).map(id=>qById.get(id)).filter(Boolean);if(!session.length){alert('対象の問題はありません。');return}
@@ -310,11 +340,11 @@ function startSession(ids,source='today',backTo='home'){
 function renderQuestion({preserveScroll=false}={}){
   const savedScroll=preserveScroll?window.scrollY:0;
   setScreen('question',preserveScroll);const q=session[sessionIndex],answer=sessionAnswers[q.id],progress=Math.round(sessionIndex/session.length*100),showNotice=answer&&answerNoticeId===q.id;
-  app.innerHTML=`${showNotice?`<div class="answer-notice ${answer.ok?'is-correct':'is-wrong'}" role="status">${answer.ok?'正解！':'残念！'}</div>`:''}${head(sessionSource==='today'?'今日の10問':sessionSource==='retry'?'誤答の解き直し':'関連問題')}<div class="question-count">${sessionIndex+1}／${session.length}問</div><div class="study-progress"><i style="width:${progress}%"></i></div>
+  app.innerHTML=`${showNotice?`<div class="answer-notice ${answer.ok?'is-correct':'is-wrong'}" role="status">${answer.ok?'正解！':'残念！'}</div>`:''}${head(sessionSource==='today'?'今日の10問':sessionSource==='retry'?'誤答の解き直し':'関連問題')}<div class="study-progress"><i style="width:${progress}%"></i></div>
   <article class="question-card"><button class="question-bookmark${bookmarks.has(q.id)?' is-on':''}" onclick="LawBook.toggleBookmark(${q.id})">🔖</button><span class="question-number">問題 ${q.id}</span><h2>${esc(q.q)}</h2>
   <div class="choices">${q.choices.map((choice,i)=>`<button class="choice${answer?(i===q.answer?' correct':i===answer.choice?' wrong':''):''}" ${answer?'disabled':''} onclick="LawBook.answer(${i})">${i+1}．${esc(choice)}</button>`).join('')}</div>
   ${answer?`<section class="answer-box"><h3>${answer.ok?'正解':'不正解'}・解説</h3><div class="answer-explanation">${formatAnswerExplanation(q)}</div><button class="secondary-button" onclick="LawBook.openSourceArticle(${q.id})">根拠条文を確認する</button></section>`:''}</article>
-  <nav class="question-nav"><button onclick="LawBook.previousQuestion()" ${sessionIndex===0?'disabled':''}>＜前へ</button><button onclick="LawBook.nextQuestion()" ${answer?'':'disabled'}>${sessionIndex===session.length-1?'結果を見る＞':'次へ＞'}</button></nav>`;
+  <nav class="question-nav"><span class="question-nav-progress">${sessionIndex+1}／${session.length}問</span><button onclick="LawBook.previousQuestion()" ${sessionIndex===0?'disabled':''}>＜前へ</button><button onclick="LawBook.nextQuestion()" ${answer?'':'disabled'}>${sessionIndex===session.length-1?'結果を見る＞':'次へ＞'}</button></nav>`;
   if(preserveScroll)requestAnimationFrame(()=>window.scrollTo(0,savedScroll));
 }
 function updateProgressStat(target,key,ok){target[key]=target[key]||{try:0,ok:0};target[key].try++;if(ok)target[key].ok++}
@@ -339,10 +369,10 @@ function record(q,ok,choiceIndex){
   }else if(prog.mistakes[q.id])delete prog.mistakes[q.id];
   round.total++;saveProg();
 }
-function answer(index){const q=session[sessionIndex];if(sessionAnswers[q.id])return;const ok=index===q.answer;sessionAnswers[q.id]={choice:index,ok};answerNoticeId=q.id;record(q,ok,index);renderQuestion({preserveScroll:true})}
-function previousQuestion(){if(sessionIndex>0){answerNoticeId=null;sessionIndex--;renderQuestion()}}
-function nextQuestion(){const q=session[sessionIndex];if(!sessionAnswers[q.id])return;answerNoticeId=null;if(sessionIndex<session.length-1){sessionIndex++;renderQuestion()}else renderResult()}
-function renderResult(){answerNoticeId=null;setScreen('result');const rows=session.map(q=>({q,a:sessionAnswers[q.id]})),ok=rows.filter(x=>x.a?.ok).length,wrong=rows.filter(x=>x.a&&!x.a.ok);app.innerHTML=`${head('結果')}<section class="result-card"><div class="result-totals"><div><strong>${ok}</strong>正答</div><div><strong>${wrong.length}</strong>誤答</div></div><div class="result-list">${rows.map(x=>`<div class="result-row"><span class="${x.a?.ok?'ok':'ng'}">${x.a?.ok?'○':'×'}</span><span>問題 ${x.q.id}　${esc(x.q.q.replace(/\s+/g,' ').slice(0,48))}</span></div>`).join('')}</div>${wrong.length?`<button class="primary-button" onclick="LawBook.retryWrong()">誤答だけ解き直す</button>`:''}<button class="secondary-button" onclick="LawBook.openBookmarks()">ブックマークした問題を確認する</button><button class="secondary-button" onclick="LawBook.home()">第1階層へ戻る</button></section>`}
+function answer(index){const q=session[sessionIndex];if(sessionAnswers[q.id])return;const ok=index===q.answer;sessionAnswers[q.id]={choice:index,ok};answerNoticeId=q.id;record(q,ok,index);saveTodaySession();renderQuestion({preserveScroll:true})}
+function previousQuestion(){if(sessionIndex>0){answerNoticeId=null;sessionIndex--;saveTodaySession();renderQuestion()}}
+function nextQuestion(){const q=session[sessionIndex];if(!sessionAnswers[q.id])return;answerNoticeId=null;if(sessionIndex<session.length-1){sessionIndex++;saveTodaySession();renderQuestion()}else renderResult()}
+function renderResult(){answerNoticeId=null;saveTodaySession();setScreen('result');const rows=session.map(q=>({q,a:sessionAnswers[q.id]})),ok=rows.filter(x=>x.a?.ok).length,wrong=rows.filter(x=>x.a&&!x.a.ok);app.innerHTML=`${head('結果')}<section class="result-card"><div class="result-totals"><div><strong>${ok}</strong>正答</div><div><strong>${wrong.length}</strong>誤答</div></div><div class="result-list">${rows.map(x=>`<div class="result-row"><span class="${x.a?.ok?'ok':'ng'}">${x.a?.ok?'○':'×'}</span><span>問題 ${x.q.id}　${esc(x.q.q.replace(/\s+/g,' ').slice(0,48))}</span></div>`).join('')}</div>${wrong.length?`<button class="primary-button" onclick="LawBook.retryWrong()">誤答だけ解き直す</button>`:''}${sessionSource==='today'&&hasNextTodaySet()?'<button class="primary-button" onclick="LawBook.startNextToday()">次の10問へ</button>':''}<button class="secondary-button" onclick="LawBook.openBookmarks()">ブックマークした問題を確認する</button><button class="secondary-button" onclick="LawBook.home()">ホームに戻る</button></section>`}
 function retryWrong(){const ids=session.filter(q=>sessionAnswers[q.id]&&!sessionAnswers[q.id].ok).map(q=>q.id);startSession(ids,'retry','result')}
 function toggleBookmark(id){id=Number(id);bookmarks.has(id)?bookmarks.delete(id):bookmarks.add(id);writeJson(BOOKMARK_KEY,[...bookmarks]);if(screen==='question')renderQuestion();else if(screen==='bookmarks')openBookmarks();else renderHome()}
 function findArticleForQuestion(id){for(let li=0;li<laws.length;li++){for(let ai=0;ai<laws[li].articles.length;ai++)if(laws[li].articles[ai].questionIds.includes(Number(id)))return{li,ai}}return null}
@@ -369,7 +399,7 @@ function openLegacyRoute(){
     const index=laws.findIndex(law=>law.id===id);if(index>=0){openLaw(index);return}
   }
 }
-const LawBook={home,back,openLaw,openRelatedLaw,openArticle,moveArticle,startToday,startRelated,answer,previousQuestion,nextQuestion,retryWrong,toggleBookmark,openBookmarks,openSourceArticle,exportBackup,importBackup,resetAll,toggleText};
+const LawBook={home,back,openLaw,openRelatedLaw,openArticle,moveArticle,startToday,startNextToday,startRelated,answer,previousQuestion,nextQuestion,retryWrong,toggleBookmark,openBookmarks,openSourceArticle,exportBackup,importBackup,resetAll,toggleText};
 window.LawBook=LawBook;
 document.body.classList.toggle('text-enlarged',textEnlarged);
 renderHome();
