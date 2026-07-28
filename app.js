@@ -1,7 +1,7 @@
 const app=document.getElementById('app');
 const headerBack=document.getElementById('headerBack');
 const headerHome=document.getElementById('headerHome');
-const APP_VERSION='4.0.4';
+const APP_VERSION='4.0.5';
 const PROG_KEY='riyo_v05_prog';
 const BOOKMARK_KEY='riyoshi_lawbook_bookmarks_v1';
 const TODAY_KEY='riyoshi_lawbook_today10_v1';
@@ -37,6 +37,12 @@ const LAW_CATEGORY_IDS=new Set(LAW_DEFS.flatMap(l=>l.categories));
 const LAW_QUESTIONS=QUESTIONS.filter(q=>LAW_CATEGORY_IDS.has(q.category));
 const qById=new Map(LAW_QUESTIONS.map(q=>[q.id,q]));
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const normaliseLegalSource=text=>String(text||'')
+  .replace(/\r\n?/g,'\n')
+  .replace(/\n[ \t]+(?!(?:[0-9０-９]+|[一二三四五六七八九十]+|[（(][0-9０-９一二三四五六七八九十]+[）)]|[イロハニホヘトチリヌルヲワカヨタレソツネナラムウヰノオクヤマケフコエテアサキユメミシヱヒモセス])[ 　])/g,'')
+  .replace(/[ \t]+\n/g,'\n')
+  .replace(/\n{3,}/g,'\n\n')
+  .trim();
 const readJson=(key,fallback)=>{try{const v=JSON.parse(localStorage.getItem(key));return v??fallback}catch(_){return fallback}};
 const writeJson=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));return true}catch(_){return false}};
 const today=()=>{const d=new Date(),z=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`};
@@ -83,7 +89,8 @@ function articleGroups(){
       if(!map.has(ref))map.set(ref,{reference:ref,sources:[],points:[],explanations:[],questionIds:[]});
       const row=map.get(ref);
       const article=typeof LAW_ARTICLE_DATA==='object'?LAW_ARTICLE_DATA[ref]:null;
-      if(article?.sourceText&&!row.sources.includes(article.sourceText))row.sources.push(article.sourceText);
+      const source=normaliseLegalSource(article?.sourceText);
+      if(source&&!row.sources.includes(source))row.sources.push(source);
       (article?.points||[]).forEach(x=>{if(x&&!row.points.includes(x))row.points.push(x)});
       (article?.explanation||[]).forEach(x=>{if(x&&!row.explanations.includes(x))row.explanations.push(x)});
       row.questionIds.push(q.id);
@@ -95,11 +102,11 @@ function articleGroups(){
         const meta=typeof LAW_META==='object'&&LAW_META[q.id]?LAW_META[q.id]:{};
         return (meta.reference||q.point||`問題 ${q.id}`)===ref;
       }).map(q=>q.id);
-      map.set(ref,{reference:ref,sources:[article.sourceText],points:[...(article.points||[])],explanations:[...(article.explanation||[])],questionIds});
+      map.set(ref,{reference:ref,sources:[normaliseLegalSource(article.sourceText)],points:[...(article.points||[])],explanations:[...(article.explanation||[])],questionIds});
     });
     if(law.staticArticles){
       law.staticArticles.forEach(article=>{
-        if(!map.has(article.reference))map.set(article.reference,{reference:article.reference,sources:[article.sourceText],points:[...article.points],explanations:[...article.explanations],questionIds:[]});
+        if(!map.has(article.reference))map.set(article.reference,{reference:article.reference,sources:[normaliseLegalSource(article.sourceText)],points:[...article.points],explanations:[...article.explanations],questionIds:[]});
       });
     }
     return {...law,articles:[...map.values()]};
