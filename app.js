@@ -6,6 +6,9 @@ const PROG_KEY='riyo_v05_prog';
 const BOOKMARK_KEY='riyoshi_lawbook_bookmarks_v1';
 const TODAY_KEY='riyoshi_lawbook_today10_v1';
 const TEXT_KEY='riyoshi_lawbook_text_enlarged_v1';
+const MOCK_PROGRESS_KEY='riyo_v05_mockProgress';
+const MATERIAL_DONE_KEY='riyoushi_9laws_final_done_v3';
+const MATERIAL_WEAK_KEY='riyoushi_9laws_final_weak_v2';
 const DISINFECTION_LAW_REFS=[
   '理容師法 第9条',
   '理容師法施行規則 第24条',
@@ -20,7 +23,7 @@ const LAW_DEFS=[
   {id:'community',name:'地域保健法',color:'#23836f',group:'law',categories:['community']},
   {id:'health_promotion_act',name:'健康増進法',color:'#3478b8',group:'law',categories:['health_promotion_act']},
   {id:'consumer',name:'消費者基本法',color:'#7059a6',group:'law',categories:['consumer']},
-  {id:'specified_commercial',name:'特定商取引法',color:'#a56a22',group:'law',categories:[],materialGroup:'特定商取引法（残り）'},
+  {id:'specified_commercial',name:'特定商取引法',color:'#a56a22',group:'law',categories:[],staticArticles:COMMERCIAL_LAW_ARTICLES},
   {id:'disinfection',name:'消毒法',color:'#287c96',group:'non_law',categories:['disinfection'],relatedLawId:'disinfection_law',relatedLabel:'関連法令：消毒に関する法令'},
   {id:'public_health',name:'公衆衛生',color:'#4778a8',group:'non_law',categories:['public_health']},
   {id:'skin',name:'皮膚',color:'#9a6578',group:'non_law',categories:['skin']},
@@ -38,11 +41,38 @@ const readJson=(key,fallback)=>{try{const v=JSON.parse(localStorage.getItem(key)
 const writeJson=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));return true}catch(_){return false}};
 const today=()=>{const d=new Date(),z=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`};
 const shuffle=a=>{const out=[...a];for(let i=out.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]]}return out};
-const baseProg=()=>({done:{},answerStats:{},history:[],mistakes:{},themeStats:{},catStats:{},daily:{},recentIds:[],recentThemes:[],mockStats:{pass:0,fail:0},scoreResetBase:{ok:0,ng:0},materialOk:{},settings:{todayCount:21,recentBlock:30,masterNeed:2}});
-let prog={...baseProg(),...(readJson(PROG_KEY,{})||{})};
+const baseProg=()=>({done:{},answerStats:{},history:[],mistakes:{},themeStats:{},catStats:{},daily:{},dailyStems:{},recentIds:[],recentThemes:[],mockStats:{pass:0,fail:0,history:[]},scoreResetBase:{ok:0,ng:0},materialOk:{},roundProgress:{total:0},settings:{todayCount:21,recentBlock:30,masterNeed:2,correctCooldown:14,masterCooldown:30,easyCooldown:60,maxKnownToday:2}});
+function normaliseProgress(raw){
+  const base=baseProg(),source=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{},out={...base,...source};
+  for(const key of ['done','answerStats','mistakes','themeStats','catStats','daily','dailyStems','scoreResetBase','materialOk'])if(!out[key]||typeof out[key]!=='object'||Array.isArray(out[key]))out[key]=base[key];
+  for(const key of ['history','recentIds','recentThemes'])if(!Array.isArray(out[key]))out[key]=[];
+  out.settings={...base.settings,...(source.settings&&typeof source.settings==='object'&&!Array.isArray(source.settings)?source.settings:{})};
+  out.mockStats={...base.mockStats,...(source.mockStats&&typeof source.mockStats==='object'&&!Array.isArray(source.mockStats)?source.mockStats:{})};
+  if(!Array.isArray(out.mockStats.history))out.mockStats.history=[];
+  out.roundProgress={total:Math.max(0,Number(source.roundProgress?.total)||out.history.length)};
+  const latestById=new Map();
+  for(const row of out.history)if(row&&Number.isFinite(Number(row.id))&&typeof row.ok==='boolean')latestById.set(Number(row.id),row.ok);
+  for(const [id,value] of Object.entries(out.answerStats)){
+    if(!value||typeof value!=='object'||Array.isArray(value)){delete out.answerStats[id];continue}
+    value.id=Number(value.id??id);
+    value.try=Math.max(0,Number(value.try)||0);
+    value.ok=Math.max(0,Number(value.ok)||0);
+    value.streak=Math.max(0,Number(value.streak)||0);
+    if(latestById.has(Number(id))){
+      value.lastResult=latestById.get(Number(id));
+      if(value.lastResult===false){value.streak=0;value.mastered=false}
+    }
+    else if(typeof value.lastResult!=='boolean'&&value.try)value.lastResult=value.lastNg&&(!value.lastOk||value.lastNg>value.lastOk)?false:true;
+    if(value.streak>=2)value.mastered=true;
+    if(value.ok>=5)value.conquered=true;
+  }
+  return out;
+}
+let prog=normaliseProgress(readJson(PROG_KEY,{}));
 let bookmarks=new Set((readJson(BOOKMARK_KEY,[])||[]).map(Number).filter(id=>qById.has(id)));
 let textEnlarged=localStorage.getItem(TEXT_KEY)==='1';
 let screen='home',lawIndex=0,articleIndex=0,session=[],sessionIndex=0,sessionAnswers={},sessionSource='today',returnScreen='home';
+let navigationReady=false,restoringNavigation=false,internalDepth=0;
 
 function articleGroups(){
   return LAW_DEFS.map(law=>{
@@ -67,12 +97,9 @@ function articleGroups(){
       }).map(q=>q.id);
       map.set(ref,{reference:ref,sources:[article.sourceText],points:[...(article.points||[])],explanations:[...(article.explanation||[])],questionIds});
     });
-    if(law.materialGroup){
-      const group=Array.isArray(DATA)?DATA.find(x=>x.name===law.materialGroup):null;
-      (group?.articles||[]).forEach(link=>{
-        const target=link.redirect&&DATA[link.redirect.law]?.articles?.[link.redirect.article]||link;
-        const ref=String(link.title||target.title||'').replace(/^(?:最重要|重要|頻出)条文はこちら\s*→\s*/,'');
-        if(!map.has(ref))map.set(ref,{reference:ref,sources:[target.body||''],points:[...(target.points||[])],explanations:[...(target.traps||[])],questionIds:[]});
+    if(law.staticArticles){
+      law.staticArticles.forEach(article=>{
+        if(!map.has(article.reference))map.set(article.reference,{reference:article.reference,sources:[article.sourceText],points:[...article.points],explanations:[...article.explanations],questionIds:[]});
       });
     }
     return {...law,articles:[...map.values()]};
@@ -82,7 +109,13 @@ const laws=articleGroups();
 function latest(q){const s=prog.answerStats?.[q.id];if(!s||!s.try)return'unanswered';return s.lastResult===false?'wrong':'correct'}
 function questionsForLaw(law){
   if(law.articleRefs){const ids=new Set(law.articles.flatMap(article=>article.questionIds));return LAW_QUESTIONS.filter(q=>ids.has(q.id))}
-  return LAW_QUESTIONS.filter(q=>law.categories.includes(q.category));
+  const questions=LAW_QUESTIONS.filter(q=>law.categories.includes(q.category));
+  if(law.id!=='barber_related')return questions;
+  const disinfectionRefs=new Set(DISINFECTION_LAW_REFS);
+  return questions.filter(q=>{
+    const meta=typeof LAW_META==='object'&&LAW_META[q.id]?LAW_META[q.id]:{};
+    return !disinfectionRefs.has(meta.reference||q.point||`問題 ${q.id}`);
+  });
 }
 function statsForLaw(law){const qs=questionsForLaw(law),correct=qs.filter(q=>latest(q)==='correct').length,wrong=qs.filter(q=>latest(q)==='wrong').length;return{total:qs.length,correct,wrong,unanswered:qs.length-correct-wrong}}
 function statsForGroup(group){const categories=new Set(LAW_DEFS.filter(l=>l.group===group).flatMap(l=>l.categories)),qs=LAW_QUESTIONS.filter(q=>categories.has(q.category)),correct=qs.filter(q=>latest(q)==='correct').length,wrong=qs.filter(q=>latest(q)==='wrong').length;return{total:qs.length,correct,wrong,unanswered:qs.length-correct-wrong}}
@@ -91,8 +124,38 @@ function roundMeta(){const raw=prog.roundProgress;if(raw&&typeof raw==='object'&
 function roundNumber(){return Math.floor(Math.max(0,roundMeta().total-1)/Math.max(1,LAW_QUESTIONS.length))+1}
 function roundNumberForLaw(law){const qs=questionsForLaw(law),total=qs.length;if(!total)return 1;const ids=new Set(qs.map(q=>q.id)),count=(prog.history||[]).filter(row=>ids.has(Number(row.id))).length;return Math.floor(Math.max(0,count-1)/total)+1}
 function lapLabel(value){return `${Math.max(1,Math.trunc(Number(value)||1))} lap`}
-function saveProg(){writeJson(PROG_KEY,prog)}
-function setScreen(name){screen=name;const hidden=name==='home';headerBack.hidden=hidden;headerHome.hidden=hidden;window.scrollTo(0,0);history.replaceState({lawBook:true,screen:name},'',location.pathname+location.search)}
+function saveProg(){prog=normaliseProgress(prog);writeJson(PROG_KEY,prog)}
+function navigationSnapshot(){return{screen,lawIndex,articleIndex,sessionIds:session.map(q=>q.id),sessionIndex,sessionAnswers,sessionSource,returnScreen,scrollY:window.scrollY}}
+function commitNavigation(replace=false){
+  if(!navigationReady||restoringNavigation)return;
+  const nextDepth=replace?internalDepth:internalDepth+1;
+  const row={lawBook:true,depth:nextDepth,state:navigationSnapshot()};
+  try{history[replace?'replaceState':'pushState'](row,'',location.pathname+location.search);internalDepth=nextDepth}catch(_){}
+}
+function setScreen(name){
+  const changed=screen!==name;screen=name;
+  const hidden=name==='home';headerBack.hidden=hidden;headerHome.hidden=hidden;
+  window.scrollTo(0,0);
+  commitNavigation(!changed);
+}
+function restoreNavigationState(saved){
+  if(!saved||typeof saved!=='object')return renderHome();
+  restoringNavigation=true;
+  lawIndex=Math.max(0,Math.min(laws.length-1,Number(saved.lawIndex)||0));
+  articleIndex=Math.max(0,Math.min(laws[lawIndex].articles.length-1,Number(saved.articleIndex)||0));
+  session=Array.isArray(saved.sessionIds)?saved.sessionIds.map(Number).map(id=>qById.get(id)).filter(Boolean):[];
+  sessionIndex=Math.max(0,Math.min(session.length-1,Number(saved.sessionIndex)||0));
+  sessionAnswers=saved.sessionAnswers&&typeof saved.sessionAnswers==='object'?saved.sessionAnswers:{};
+  sessionSource=saved.sessionSource||'today';returnScreen=saved.returnScreen||'home';
+  if(saved.screen==='law')openLaw(lawIndex);
+  else if(saved.screen==='article')openArticle(articleIndex,returnScreen);
+  else if(saved.screen==='question'&&session.length)renderQuestion();
+  else if(saved.screen==='result'&&session.length)renderResult();
+  else if(saved.screen==='bookmarks')openBookmarks();
+  else renderHome();
+  restoringNavigation=false;
+  requestAnimationFrame(()=>window.scrollTo(0,Math.max(0,Number(saved.scrollY)||0)));
+}
 function head(title){return `<div class="view-head"><span></span><h2>${esc(title)}</h2><span></span></div>`}
 function renderHome(){
   setScreen('home');const all=totalStats(),rate=all.total?Math.round(all.correct/all.total*100):0,lawStats=statsForGroup('law'),nonLawStats=statsForGroup('non_law');
@@ -252,8 +315,29 @@ function renderQuestion(){
   ${answer?`<section class="answer-box"><h3>${answer.ok?'正解':'不正解'}・解説</h3><div class="answer-explanation">${formatAnswerExplanation(q)}</div><button class="secondary-button" onclick="LawBook.openSourceArticle(${q.id})">根拠条文を確認する</button></section>`:''}</article>
   <nav class="question-nav"><button onclick="LawBook.previousQuestion()" ${sessionIndex===0?'disabled':''}>＜前へ</button><button onclick="LawBook.nextQuestion()" ${answer?'':'disabled'}>${sessionIndex===session.length-1?'結果を見る＞':'次へ＞'}</button></nav>`;
 }
-function record(q,ok){const round=roundMeta();prog.done=prog.done||{};prog.done[q.id]=true;prog.answerStats=prog.answerStats||{};const s=prog.answerStats[q.id]||{id:q.id,try:0,ok:0,streak:0};s.try++;s.lastTry=today();s.lastResult=ok;if(ok){s.ok++;s.streak=(s.streak||0)+1;s.lastOk=today()}else{s.streak=0;s.lastNg=today()}prog.answerStats[q.id]=s;prog.history=prog.history||[];prog.history.push({id:q.id,ok,day:today(),cat:q.category});round.total++;saveProg()}
-function answer(index){const q=session[sessionIndex];if(sessionAnswers[q.id])return;const ok=index===q.answer;sessionAnswers[q.id]={choice:index,ok};record(q,ok);renderQuestion()}
+function updateProgressStat(target,key,ok){target[key]=target[key]||{try:0,ok:0};target[key].try++;if(ok)target[key].ok++}
+function record(q,ok,choiceIndex){
+  const day=today(),round=roundMeta(),theme=q.themeId||q.category,tag=q.themeId||q.category,stem=q.stemId||String(q.q||'').replace(/\s+/g,'').trim();
+  prog.done[q.id]=true;
+  const s=prog.answerStats[q.id]||{id:q.id,try:0,ok:0,streak:0,mastered:false,lastTry:null,lastOk:null,lastNg:null};
+  s.try++;s.lastTry=day;s.lastResult=ok;
+  if(ok){s.ok++;s.streak=(s.streak||0)+1;s.lastOk=day;if(s.streak>=2)s.mastered=true;if(s.ok>=5)s.conquered=true}
+  else{s.streak=0;s.mastered=false;s.lastNg=day}
+  prog.answerStats[q.id]=s;
+  prog.history.push({id:q.id,ok,day,cat:q.category,theme,tag});
+  prog.recentIds=[...prog.recentIds,q.id].slice(-100);
+  prog.recentThemes=[...prog.recentThemes,theme].slice(-100);
+  prog.dailyStems[day]=Array.from(new Set([...(prog.dailyStems[day]||[]),stem])).slice(-300);
+  prog.daily[day]=prog.daily[day]||{try:0,ok:0};prog.daily[day].try++;if(ok)prog.daily[day].ok++;
+  updateProgressStat(prog.catStats,q.category,ok);
+  updateProgressStat(prog.themeStats,theme,ok);
+  if(!ok){
+    const m=prog.mistakes[q.id]||{id:q.id,wrongCount:0,correctCount:0,streak:0,firstMiss:day,mastered:false,history:[]};
+    m.wrongCount++;m.streak=0;m.mastered=false;m.lastMiss=day;m.nextReview=day;m.lastAnswer=q.choices[choiceIndex]||'';m.correct=q.choices[q.answer]||'';m.history=Array.isArray(m.history)?m.history:[];m.history.push({day,ok:false});prog.mistakes[q.id]=m;
+  }else if(prog.mistakes[q.id])delete prog.mistakes[q.id];
+  round.total++;saveProg();
+}
+function answer(index){const q=session[sessionIndex];if(sessionAnswers[q.id])return;const ok=index===q.answer;sessionAnswers[q.id]={choice:index,ok};record(q,ok,index);renderQuestion()}
 function previousQuestion(){if(sessionIndex>0){sessionIndex--;renderQuestion()}}
 function nextQuestion(){const q=session[sessionIndex];if(!sessionAnswers[q.id])return;if(sessionIndex<session.length-1){sessionIndex++;renderQuestion()}else renderResult()}
 function renderResult(){setScreen('result');const rows=session.map(q=>({q,a:sessionAnswers[q.id]})),ok=rows.filter(x=>x.a?.ok).length,wrong=rows.filter(x=>x.a&&!x.a.ok);app.innerHTML=`${head('結果')}<section class="result-card"><div class="result-totals"><div><strong>${ok}</strong>正答</div><div><strong>${wrong.length}</strong>誤答</div></div><div class="result-list">${rows.map(x=>`<div class="result-row"><span class="${x.a?.ok?'ok':'ng'}">${x.a?.ok?'○':'×'}</span><span>問題 ${x.q.id}　${esc(x.q.q.replace(/\s+/g,' ').slice(0,48))}</span></div>`).join('')}</div>${wrong.length?`<button class="primary-button" onclick="LawBook.retryWrong()">誤答だけ解き直す</button>`:''}<button class="secondary-button" onclick="LawBook.openBookmarks()">ブックマークした問題を確認する</button><button class="secondary-button" onclick="LawBook.home()">第1階層へ戻る</button></section>`}
@@ -262,25 +346,50 @@ function toggleBookmark(id){id=Number(id);bookmarks.has(id)?bookmarks.delete(id)
 function findArticleForQuestion(id){for(let li=0;li<laws.length;li++){for(let ai=0;ai<laws[li].articles.length;ai++)if(laws[li].articles[ai].questionIds.includes(Number(id)))return{li,ai}}return null}
 function openSourceArticle(id){const hit=findArticleForQuestion(id);if(!hit)return;const source=screen==='bookmarks'?'bookmarks':'question';lawIndex=hit.li;articleIndex=hit.ai;openArticle(hit.ai,source)}
 function openBookmarks(){setScreen('bookmarks');app.innerHTML=`${head('ブックマーク問題')}<section class="bookmark-list">${bookmarks.size?[...bookmarks].map(id=>qById.get(id)).filter(Boolean).map(q=>{const law=LAW_DEFS.find(l=>l.categories.includes(q.category));return `<details class="bookmark-item"><summary><span>${esc(q.q.replace(/\s+/g,' ').slice(0,58))}</span><small>問題 ${q.id}</small></summary><div class="bookmark-body"><h3>選択肢</h3><ol>${q.choices.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><h3>正答</h3><p>${esc(q.choices[q.answer])}</p><h3>解説</h3><div class="answer-explanation">${formatAnswerExplanation(q)}</div><h3>関連法令</h3><p>${esc(law?.name||'')}　${esc(q.point||'')}</p><div class="bookmark-actions"><button class="remove" onclick="LawBook.toggleBookmark(${q.id})">解除</button><button class="open" onclick="LawBook.openSourceArticle(${q.id})">この条文を開く</button></div></div></details>`}).join(''):'<div class="empty">登録した問題はありません。</div>'}</section>`}
-function exportBackup(){saveProg();const payload={format:'riyoshi-lawbook-backup',version:1,exportedAt:new Date().toISOString(),progress:prog,bookmarks:[...bookmarks],today:readJson(TODAY_KEY,{}),textEnlarged};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`法令集バックアップ-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-async function importBackup(file){if(!file)return;try{const p=JSON.parse(await file.text());if(!p||p.format!=='riyoshi-lawbook-backup'||p.version!==1||!p.progress||!Array.isArray(p.bookmarks))throw new Error('形式が一致しません');if(!confirm('現在の学習記録を、選択したバックアップ内容で置き換えます。よろしいですか？'))return;prog={...baseProg(),...p.progress};bookmarks=new Set(p.bookmarks.map(Number).filter(id=>qById.has(id)));textEnlarged=typeof p.textEnlarged==='boolean'?p.textEnlarged:textEnlarged;saveProg();writeJson(BOOKMARK_KEY,[...bookmarks]);writeJson(TODAY_KEY,p.today||{});localStorage.setItem(TEXT_KEY,textEnlarged?'1':'0');document.body.classList.toggle('text-enlarged',textEnlarged);renderHome();alert('バックアップを読み込みました。')}catch(e){alert(`バックアップを読み込めませんでした。${e.message?' '+e.message:''}`)}}
-function resetAll(){if(!confirm('解答履歴・成績・学習状況・ブックマーク・その他の学習記録をすべて削除します。この操作は元に戻せません。よろしいですか？'))return;prog=baseProg();bookmarks.clear();saveProg();localStorage.removeItem(BOOKMARK_KEY);localStorage.removeItem(TODAY_KEY);localStorage.removeItem('riyoushi_9laws_final_done_v3');localStorage.removeItem('riyoushi_9laws_final_weak_v2');renderHome()}
+function exportBackup(){saveProg();const payload={format:'riyoshi-lawbook-backup',version:2,exportedAt:new Date().toISOString(),progress:prog,bookmarks:[...bookmarks],today:readJson(TODAY_KEY,{}),textEnlarged,legacy:{mockProgress:readJson(MOCK_PROGRESS_KEY,null),materialDone:readJson(MATERIAL_DONE_KEY,[]),materialWeak:readJson(MATERIAL_WEAK_KEY,[])}};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`法令集バックアップ-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+async function importBackup(file){if(!file)return;try{const p=JSON.parse(await file.text());if(!p||p.format!=='riyoshi-lawbook-backup'||![1,2].includes(p.version)||!p.progress||!Array.isArray(p.bookmarks))throw new Error('形式が一致しません');if(!confirm('現在の学習記録を、選択したバックアップ内容で置き換えます。よろしいですか？'))return;prog=normaliseProgress(p.progress);bookmarks=new Set(p.bookmarks.map(Number).filter(id=>qById.has(id)));textEnlarged=typeof p.textEnlarged==='boolean'?p.textEnlarged:textEnlarged;saveProg();writeJson(BOOKMARK_KEY,[...bookmarks]);writeJson(TODAY_KEY,p.today||{});if(p.version>=2&&p.legacy){p.legacy.mockProgress?writeJson(MOCK_PROGRESS_KEY,p.legacy.mockProgress):localStorage.removeItem(MOCK_PROGRESS_KEY);writeJson(MATERIAL_DONE_KEY,Array.isArray(p.legacy.materialDone)?p.legacy.materialDone:[]);writeJson(MATERIAL_WEAK_KEY,Array.isArray(p.legacy.materialWeak)?p.legacy.materialWeak:[])}localStorage.setItem(TEXT_KEY,textEnlarged?'1':'0');document.body.classList.toggle('text-enlarged',textEnlarged);renderHome();alert('バックアップを読み込みました。')}catch(e){alert(`バックアップを読み込めませんでした。${e.message?' '+e.message:''}`)}}
+function resetAll(){if(!confirm('解答履歴・成績・学習状況・ブックマーク・その他の学習記録をすべて削除します。この操作は元に戻せません。よろしいですか？'))return;prog=baseProg();bookmarks.clear();saveProg();localStorage.removeItem(BOOKMARK_KEY);localStorage.removeItem(TODAY_KEY);localStorage.removeItem(MOCK_PROGRESS_KEY);localStorage.removeItem(MATERIAL_DONE_KEY);localStorage.removeItem(MATERIAL_WEAK_KEY);renderHome()}
 function toggleText(){textEnlarged=!textEnlarged;localStorage.setItem(TEXT_KEY,textEnlarged?'1':'0');document.body.classList.toggle('text-enlarged',textEnlarged);renderHome()}
-function home(){renderHome()}
+function home(){if(screen!=='home')renderHome()}
 function back(){
-  if(screen==='law')return renderHome();
-  if(screen==='article'){
-    if(returnScreen==='question')return renderQuestion();
-    if(returnScreen==='bookmarks')return openBookmarks();
-    return openLaw(lawIndex);
+  if(internalDepth>0){history.back();return}
+  if(screen!=='home')renderHome();
+}
+function openLegacyRoute(){
+  const hash=decodeURIComponent(location.hash||'');
+  const question=hash.match(/question=(\d+)/);
+  if(question&&qById.has(Number(question[1]))){startSession([Number(question[1])],'related','home');return}
+  const category=hash.match(/cat=([^&]+)/);
+  if(category){const index=laws.findIndex(law=>law.categories.includes(category[1]));if(index>=0){openLaw(index);return}}
+  const legacyLaw=hash.match(/law=(\d+)/);
+  if(legacyLaw){
+    const id={3:'barber_related',4:'barber_related',5:'barber_related',6:'barber_related',7:'infection',8:'community',10:'consumer',11:'specified_commercial',12:'disinfection'}[Number(legacyLaw[1])];
+    const index=laws.findIndex(law=>law.id===id);if(index>=0){openLaw(index);return}
   }
-  if(screen==='question'){if(sessionSource==='related')return openArticle(articleIndex);return renderHome()}
-  if(screen==='result')return renderHome();
-  if(screen==='bookmarks')return renderHome();
-  renderHome();
 }
 const LawBook={home,back,openLaw,openRelatedLaw,openArticle,moveArticle,startToday,startRelated,answer,previousQuestion,nextQuestion,retryWrong,toggleBookmark,openBookmarks,openSourceArticle,exportBackup,importBackup,resetAll,toggleText};
 window.LawBook=LawBook;
 document.body.classList.toggle('text-enlarged',textEnlarged);
 renderHome();
-if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+navigationReady=true;
+history.replaceState({lawBook:true,depth:0,state:navigationSnapshot()},'',location.pathname+location.search+location.hash);
+openLegacyRoute();
+window.addEventListener('popstate',event=>{if(event.state?.lawBook){internalDepth=Math.max(0,Number(event.state.depth)||0);restoreNavigationState(event.state.state)}else if(screen!=='home'){internalDepth=0;renderHome()}});
+async function registerCurrentServiceWorker(){
+  if(!('serviceWorker'in navigator))return;
+  try{
+    const rootScope=new URL('./',location.href).href;
+    const legacyScopes=[
+      new URL('./分野別問題/',rootScope).href,
+      new URL('./学習資料/',rootScope).href
+    ];
+    if(typeof navigator.serviceWorker.getRegistrations==='function'){
+      const registrations=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations
+        .filter(registration=>legacyScopes.includes(registration.scope))
+        .map(registration=>registration.unregister()));
+    }
+    await navigator.serviceWorker.register('./sw.js');
+  }catch(_){}
+}
+window.addEventListener('load',registerCurrentServiceWorker);
