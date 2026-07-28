@@ -71,7 +71,7 @@ function normaliseProgress(raw){
 let prog=normaliseProgress(readJson(PROG_KEY,{}));
 let bookmarks=new Set((readJson(BOOKMARK_KEY,[])||[]).map(Number).filter(id=>qById.has(id)));
 let textEnlarged=localStorage.getItem(TEXT_KEY)==='1';
-let screen='home',lawIndex=0,articleIndex=0,session=[],sessionIndex=0,sessionAnswers={},sessionSource='today',returnScreen='home';
+let screen='home',lawIndex=0,articleIndex=0,session=[],sessionIndex=0,sessionAnswers={},sessionSource='today',returnScreen='home',answerNoticeId=null;
 let navigationReady=false,restoringNavigation=false,internalDepth=0;
 
 function articleGroups(){
@@ -132,10 +132,10 @@ function commitNavigation(replace=false){
   const row={lawBook:true,depth:nextDepth,state:navigationSnapshot()};
   try{history[replace?'replaceState':'pushState'](row,'',location.pathname+location.search);internalDepth=nextDepth}catch(_){}
 }
-function setScreen(name){
+function setScreen(name,preserveScroll=false){
   const changed=screen!==name;screen=name;
   const hidden=name==='home';headerBack.hidden=hidden;headerHome.hidden=hidden;
-  window.scrollTo(0,0);
+  if(!preserveScroll)window.scrollTo(0,0);
   commitNavigation(!changed);
 }
 function restoreNavigationState(saved){
@@ -305,15 +305,17 @@ function startToday(){startSession(pickToday(),'today','home')}
 function startRelated(){const ids=laws[lawIndex].articles[articleIndex].questionIds;startSession(ids,'related','article')}
 function startSession(ids,source='today',backTo='home'){
   session=ids.map(Number).map(id=>qById.get(id)).filter(Boolean);if(!session.length){alert('対象の問題はありません。');return}
-  sessionIndex=0;sessionAnswers={};sessionSource=source;returnScreen=backTo;renderQuestion();
+  sessionIndex=0;sessionAnswers={};sessionSource=source;returnScreen=backTo;answerNoticeId=null;renderQuestion();
 }
-function renderQuestion(){
-  setScreen('question');const q=session[sessionIndex],answer=sessionAnswers[q.id],progress=Math.round(sessionIndex/session.length*100);
-  app.innerHTML=`${head(sessionSource==='today'?'今日の10問':sessionSource==='retry'?'誤答の解き直し':'関連問題')}<div class="question-count">${sessionIndex+1}／${session.length}問</div><div class="study-progress"><i style="width:${progress}%"></i></div>
+function renderQuestion({preserveScroll=false}={}){
+  const savedScroll=preserveScroll?window.scrollY:0;
+  setScreen('question',preserveScroll);const q=session[sessionIndex],answer=sessionAnswers[q.id],progress=Math.round(sessionIndex/session.length*100),showNotice=answer&&answerNoticeId===q.id;
+  app.innerHTML=`${showNotice?`<div class="answer-notice ${answer.ok?'is-correct':'is-wrong'}" role="status">${answer.ok?'正解！':'残念！'}</div>`:''}${head(sessionSource==='today'?'今日の10問':sessionSource==='retry'?'誤答の解き直し':'関連問題')}<div class="question-count">${sessionIndex+1}／${session.length}問</div><div class="study-progress"><i style="width:${progress}%"></i></div>
   <article class="question-card"><button class="question-bookmark${bookmarks.has(q.id)?' is-on':''}" onclick="LawBook.toggleBookmark(${q.id})">🔖</button><span class="question-number">問題 ${q.id}</span><h2>${esc(q.q)}</h2>
   <div class="choices">${q.choices.map((choice,i)=>`<button class="choice${answer?(i===q.answer?' correct':i===answer.choice?' wrong':''):''}" ${answer?'disabled':''} onclick="LawBook.answer(${i})">${i+1}．${esc(choice)}</button>`).join('')}</div>
   ${answer?`<section class="answer-box"><h3>${answer.ok?'正解':'不正解'}・解説</h3><div class="answer-explanation">${formatAnswerExplanation(q)}</div><button class="secondary-button" onclick="LawBook.openSourceArticle(${q.id})">根拠条文を確認する</button></section>`:''}</article>
   <nav class="question-nav"><button onclick="LawBook.previousQuestion()" ${sessionIndex===0?'disabled':''}>＜前へ</button><button onclick="LawBook.nextQuestion()" ${answer?'':'disabled'}>${sessionIndex===session.length-1?'結果を見る＞':'次へ＞'}</button></nav>`;
+  if(preserveScroll)requestAnimationFrame(()=>window.scrollTo(0,savedScroll));
 }
 function updateProgressStat(target,key,ok){target[key]=target[key]||{try:0,ok:0};target[key].try++;if(ok)target[key].ok++}
 function record(q,ok,choiceIndex){
@@ -337,10 +339,10 @@ function record(q,ok,choiceIndex){
   }else if(prog.mistakes[q.id])delete prog.mistakes[q.id];
   round.total++;saveProg();
 }
-function answer(index){const q=session[sessionIndex];if(sessionAnswers[q.id])return;const ok=index===q.answer;sessionAnswers[q.id]={choice:index,ok};record(q,ok,index);renderQuestion()}
-function previousQuestion(){if(sessionIndex>0){sessionIndex--;renderQuestion()}}
-function nextQuestion(){const q=session[sessionIndex];if(!sessionAnswers[q.id])return;if(sessionIndex<session.length-1){sessionIndex++;renderQuestion()}else renderResult()}
-function renderResult(){setScreen('result');const rows=session.map(q=>({q,a:sessionAnswers[q.id]})),ok=rows.filter(x=>x.a?.ok).length,wrong=rows.filter(x=>x.a&&!x.a.ok);app.innerHTML=`${head('結果')}<section class="result-card"><div class="result-totals"><div><strong>${ok}</strong>正答</div><div><strong>${wrong.length}</strong>誤答</div></div><div class="result-list">${rows.map(x=>`<div class="result-row"><span class="${x.a?.ok?'ok':'ng'}">${x.a?.ok?'○':'×'}</span><span>問題 ${x.q.id}　${esc(x.q.q.replace(/\s+/g,' ').slice(0,48))}</span></div>`).join('')}</div>${wrong.length?`<button class="primary-button" onclick="LawBook.retryWrong()">誤答だけ解き直す</button>`:''}<button class="secondary-button" onclick="LawBook.openBookmarks()">ブックマークした問題を確認する</button><button class="secondary-button" onclick="LawBook.home()">第1階層へ戻る</button></section>`}
+function answer(index){const q=session[sessionIndex];if(sessionAnswers[q.id])return;const ok=index===q.answer;sessionAnswers[q.id]={choice:index,ok};answerNoticeId=q.id;record(q,ok,index);renderQuestion({preserveScroll:true})}
+function previousQuestion(){if(sessionIndex>0){answerNoticeId=null;sessionIndex--;renderQuestion()}}
+function nextQuestion(){const q=session[sessionIndex];if(!sessionAnswers[q.id])return;answerNoticeId=null;if(sessionIndex<session.length-1){sessionIndex++;renderQuestion()}else renderResult()}
+function renderResult(){answerNoticeId=null;setScreen('result');const rows=session.map(q=>({q,a:sessionAnswers[q.id]})),ok=rows.filter(x=>x.a?.ok).length,wrong=rows.filter(x=>x.a&&!x.a.ok);app.innerHTML=`${head('結果')}<section class="result-card"><div class="result-totals"><div><strong>${ok}</strong>正答</div><div><strong>${wrong.length}</strong>誤答</div></div><div class="result-list">${rows.map(x=>`<div class="result-row"><span class="${x.a?.ok?'ok':'ng'}">${x.a?.ok?'○':'×'}</span><span>問題 ${x.q.id}　${esc(x.q.q.replace(/\s+/g,' ').slice(0,48))}</span></div>`).join('')}</div>${wrong.length?`<button class="primary-button" onclick="LawBook.retryWrong()">誤答だけ解き直す</button>`:''}<button class="secondary-button" onclick="LawBook.openBookmarks()">ブックマークした問題を確認する</button><button class="secondary-button" onclick="LawBook.home()">第1階層へ戻る</button></section>`}
 function retryWrong(){const ids=session.filter(q=>sessionAnswers[q.id]&&!sessionAnswers[q.id].ok).map(q=>q.id);startSession(ids,'retry','result')}
 function toggleBookmark(id){id=Number(id);bookmarks.has(id)?bookmarks.delete(id):bookmarks.add(id);writeJson(BOOKMARK_KEY,[...bookmarks]);if(screen==='question')renderQuestion();else if(screen==='bookmarks')openBookmarks();else renderHome()}
 function findArticleForQuestion(id){for(let li=0;li<laws.length;li++){for(let ai=0;ai<laws[li].articles.length;ai++)if(laws[li].articles[ai].questionIds.includes(Number(id)))return{li,ai}}return null}
