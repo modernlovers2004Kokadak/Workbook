@@ -1,7 +1,7 @@
 const app=document.getElementById('app');
 const headerBack=document.getElementById('headerBack');
 const headerHome=document.getElementById('headerHome');
-const APP_VERSION='4.0.5';
+const APP_VERSION='4.0.7';
 const PROG_KEY='riyo_v05_prog';
 const BOOKMARK_KEY='riyoshi_lawbook_bookmarks_v1';
 const TODAY_KEY='riyoshi_lawbook_today10_v1';
@@ -130,7 +130,12 @@ function totalStats(){const correct=LAW_QUESTIONS.filter(q=>latest(q)==='correct
 function roundMeta(){const raw=prog.roundProgress;if(raw&&typeof raw==='object'&&!Array.isArray(raw)){raw.total=Math.max(0,Number(raw.total)||0);return raw}return prog.roundProgress={total:Array.isArray(prog.history)?prog.history.length:0}}
 function roundNumber(){return Math.floor(Math.max(0,roundMeta().total-1)/Math.max(1,LAW_QUESTIONS.length))+1}
 function roundNumberForLaw(law){const qs=questionsForLaw(law),total=qs.length;if(!total)return 1;const ids=new Set(qs.map(q=>q.id)),count=(prog.history||[]).filter(row=>ids.has(Number(row.id))).length;return Math.floor(Math.max(0,count-1)/total)+1}
-function lapLabel(value){return `${Math.max(1,Math.trunc(Number(value)||1))} lap`}
+function lapLabel(value){
+  const lap=Math.max(1,Math.trunc(Number(value)||1));
+  const mod100=lap%100;
+  const suffix=mod100>=11&&mod100<=13?'th':lap%10===1?'st':lap%10===2?'nd':lap%10===3?'rd':'th';
+  return `${lap}${suffix} lap`;
+}
 function saveProg(){prog=normaliseProgress(prog);writeJson(PROG_KEY,prog)}
 function navigationSnapshot(){return{screen,lawIndex,articleIndex,sessionIds:session.map(q=>q.id),sessionIndex,sessionAnswers,sessionSource,returnScreen,scrollY:window.scrollY}}
 function commitNavigation(replace=false){
