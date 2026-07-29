@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新制度による筆記試験実施要領</title>
+<style>
+:root {
+  --navy:#073D86;
+  --ink:#222;
+  --muted:#666;
+  --line:#d8dee8;
+  --soft:#f5f8fc;
+  --accent:#eaf1fb;
+}
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body {
+  margin:0;
+  background:#eef2f7;
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"ヒラギノ角ゴシック","Yu Gothic","メイリオ",sans-serif;
+  line-height:1.85;
+  font-size:17px;
+}
+.app-header {
+  position:sticky;
+  top:0;
+  z-index:20;
+  display:grid;
+  grid-template-columns:54px minmax(0,1fr) 54px;
+  align-items:center;
+  min-height:64px;
+  padding:env(safe-area-inset-top) 8px 0;
+  background:var(--navy);
+  color:#fff;
+  box-shadow:0 2px 8px rgba(16,42,76,.2);
+}
+.app-header h1 {
+  margin:0;
+  font-size:16px;
+  font-weight:400;
+  line-height:1.35;
+  text-align:center;
+}
+.header-nav-button {
+  display:grid;
+  place-items:center;
+  width:44px;
+  height:44px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:#fff;
+  font:inherit;
+  font-size:22px;
+  line-height:1;
+}
+main {
+  width:min(920px, calc(100% - 24px));
+  margin:24px auto 48px;
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 8px 28px rgba(0,0,0,.08);
+  overflow:hidden;
+}
+.hero {
+  padding:34px 28px 30px;
+  background:var(--navy);
+  color:#fff;
+  text-align:center;
+}
+.hero h1 {
+  margin:.3em 0 .5em;
+  font-size:clamp(26px,5vw,40px);
+  line-height:1.35;
+}
+.eyebrow,.date { margin:.2em 0; opacity:.95; }
+section { padding:28px; border-top:1px solid var(--line); }
+h2 {
+  margin:0 0 1em;
+  color:var(--navy);
+  font-size:1.55rem;
+  line-height:1.4;
+  border-left:6px solid var(--navy);
+  padding-left:.7em;
+}
+h3 { margin:1.8em 0 .7em; font-size:1.2rem; }
+h4 { margin:1.2em 0 .5em; color:var(--navy); }
+h5 { margin:1em 0 .4em; font-size:1rem; }
+p { margin:.7em 0; }
+ul,ol { margin:.5em 0 .5em 1.3em; padding:0; }
+li { margin:.28em 0; }
+.subject-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin:1em 0 1.5em;
+}
+.subject-grid > div {
+  background:var(--soft);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:14px;
+  text-align:center;
+}
+.subject-grid span { color:var(--muted); font-size:.9em; }
+.card {
+  margin:16px 0;
+  padding:20px;
+  background:var(--soft);
+  border:1px solid var(--line);
+  border-radius:14px;
+}
+.card h3 { margin-top:0; color:var(--navy); }
+.table-wrap {
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  margin-top:1em;
+}
+table {
+  width:100%;
+  border-collapse:collapse;
+  min-width:560px;
+}
+th,td {
+  border:1px solid #bfc8d5;
+  padding:12px 14px;
+  vertical-align:top;
+}
+th {
+  background:var(--navy);
+  color:#fff;
+  text-align:left;
+}
+tbody tr:nth-child(even) td { background:#fafbfd; }
+.total td {
+  background:var(--accent)!important;
+  font-weight:700;
+}
+.detail-table td:first-child { font-weight:600; }
+.detail-table ul { margin:.2em 0 .2em 1.2em; }
+@media (max-width:640px) {
+  body { font-size:16px; }
+  main { width:100%; margin:0; border-radius:0; box-shadow:none; }
+  .hero { padding:26px 18px; }
+  section { padding:22px 16px; }
+  .subject-grid { grid-template-columns:1fr; }
+  .card { padding:16px; }
+  .table-wrap { overflow-x:visible; }
+  table {
+    min-width:0;
+    table-layout:fixed;
+    font-size:14px;
+    line-height:1.55;
+  }
+  th,td {
+    padding:8px 6px;
+    overflow-wrap:anywhere;
+  }
+  table:not(.detail-table) th:last-child,
+  table:not(.detail-table) td:last-child {
+    width:72px;
+  }
+}
+@media print {
+  body { background:#fff; }
+  main { width:100%; margin:0; box-shadow:none; }
+  .card { break-inside:avoid; }
+  section { break-inside:auto; }
+}
+</style>
+</head>
+<body>
+<nav class="app-header" aria-label="画面移動">
+  <button class="header-nav-button" type="button" onclick="history.back()" aria-label="戻る">‹</button>
+  <h1>新制度による筆記試験実施要領</h1>
+  <span aria-hidden="true"></span>
+</nav>
+<main>
+
+<header class="hero">
+  <p class="eyebrow">公益財団法人 理容師美容師試験研修センター</p>
+  <h1>新制度による筆記試験実施要領</h1>
+  <p class="date">平成31年3月15日<br>改定 令和3年4月28日</p>
+</header>
+
+<section>
+  <p>
+    理容師養成施設及び美容師養成施設における授業の実施方法及び試験課目の改正等を内容とする
+    「理容師法施行規則等の一部を改正する省令（平成29年3月31日、厚生労働省令第39号）」に基づき、
+    筆記試験については、次により実施するものとする。
+  </p>
+</section>
+
+<section>
+  <h2>1　筆記試験課目</h2>
+
+  <h3>⑴ 対象課目</h3>
+  <p>筆記試験は、次の7課目について実施する。</p>
+  <div class="subject-grid">
+    <div>関係法規・制度</div>
+    <div>衛生管理</div>
+    <div>保健</div>
+    <div>香粧品化学</div>
+    <div>文化論</div>
+    <div>理容技術理論<br><span>（美容技術理論）</span></div>
+    <div>運営管理</div>
+  </div>
+
+  <h3>⑵ 課目の括り及び問題数</h3>
+  <p>筆記試験7課目を5分野に括り、出題数は全体で55問とする。</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>分野</th><th>問題数</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>関係法規・制度及び運営管理</td><td>10問</td></tr>
+        <tr><td>衛生管理</td><td>15問</td></tr>
+        <tr><td>保健</td><td>10問</td></tr>
+        <tr><td>香粧品化学</td><td>5問</td></tr>
+        <tr><td>文化論及び理（美）容技術理論</td><td>15問</td></tr>
+        <tr class="total"><td>合計</td><td>55問</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<section>
+  <h2>2　課目別留意事項</h2>
+  <p>
+    試験問題の出題に当たっては、「理容師養成施設の教科課目の基準の運用について」
+    及び「美容師養成施設の教科課目の基準の運用について」並びに次の留意事項及び
+    課目別重点項目によるものとする。
+  </p>
+
+  <article class="card">
+    <h3>⑴ 関係法規・制度及び運営管理</h3>
+    <p><strong>留意事項</strong>　問題は、理容及び美容共通</p>
+    <h4>重点項目</h4>
+    <h5>① 関係法規・制度</h5>
+    <ul>
+      <li>理（美）容師法</li>
+      <li>生活衛生関係営業の運営の適正化及び振興に関する法律</li>
+      <li>保健所の役割</li>
+      <li>衛生行政</li>
+      <li>政策金融の意義と仕組み</li>
+      <li>消費者保護の仕組み</li>
+    </ul>
+    <h5>② 運営管理</h5>
+    <p>別表1「運営管理」参照</p>
+  </article>
+
+  <article class="card">
+    <h3>⑵ 衛生管理</h3>
+    <p><strong>留意事項</strong>　問題は、理容及び美容共通</p>
+    <h4>重点項目</h4>
+    <ol>
+      <li>公衆衛生・環境衛生</li>
+      <li>感染症</li>
+      <li>衛生管理技術</li>
+    </ol>
+  </article>
+
+  <article class="card">
+    <h3>⑶ 保健</h3>
+    <p><strong>留意事項</strong>　問題は、理容及び美容共通</p>
+    <h4>重点項目</h4>
+    <ol>
+      <li>人体の構造及び機能</li>
+      <li>皮膚科学</li>
+    </ol>
+  </article>
+
+  <article class="card">
+    <h3>⑷ 香粧品化学</h3>
+    <p><strong>留意事項</strong>　問題は、理容及び美容共通</p>
+    <p><strong>重点項目</strong>　従来の理・美容の物理化学のうちの香粧品化学</p>
+  </article>
+
+  <article class="card">
+    <h3>⑸ 文化論及び理容技術理論／美容技術理論</h3>
+    <p><strong>留意事項</strong>　理容及び美容それぞれ別問題</p>
+    <h4>重点項目</h4>
+    <h5>① 理・美容技術理論</h5>
+    <ul>
+      <li>理・美容技術理論</li>
+      <li>まつ毛エクステンション（美容のみ）</li>
+      <li>理・美容器具</li>
+      <li>色彩及びデザイン</li>
+    </ul>
+    <h5>② 文化論</h5>
+    <p>別表2「文化論」参照</p>
+  </article>
+</section>
+
+
+<section>
+  <h2>別表1　運営管理</h2>
+  <div class="table-wrap">
+    <table class="detail-table">
+      <thead>
+        <tr><th>大項目</th><th>中項目</th><th>小項目</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td rowspan="2">理美容業の経営環境</td>
+          <td>少子高齢化と理美容業</td>
+          <td>
+            <ul>
+              <li>総人口の推移</li>
+              <li>若年・生産・老年3区分による将来人口推計</li>
+              <li>人口の減少と構造変化が理美容業に及ぼす影響と対応策</li>
+            </ul>
+          </td>
+        </tr>
+        <tr><td>理美容業の動向</td><td>理美容所及び従業者の動向と課題</td></tr>
+
+        <tr>
+          <td rowspan="2">資金管理</td>
+          <td>経理</td>
+          <td><ul><li>収支と損益</li><li>貸借対照表とその意義</li><li>損益計算書とその意義</li></ul></td>
+        </tr>
+        <tr>
+          <td>税金</td>
+          <td><ul><li>個人経営・法人経営別税金の種類と納付時期</li><li>税に関する罰則</li><li>青色申告制度</li></ul></td>
+        </tr>
+
+        <tr>
+          <td>年金保険</td>
+          <td>公的年金</td>
+          <td><ul><li>国民皆年金制度</li><li>制度別被保険者と財源負担</li><li>制度別給付の概要</li></ul></td>
+        </tr>
+
+        <tr>
+          <td rowspan="2">医療・介護保険</td>
+          <td>医療保険</td>
+          <td><ul><li>国民皆保険制度</li><li>制度別保険者と被保険者</li><li>医療費一部負担金の割合</li><li>現金給付の概要</li></ul></td>
+        </tr>
+        <tr>
+          <td>介護保険</td>
+          <td><ul><li>介護保険法の目的</li><li>被保険者と財源負担</li><li>給付制度の概要</li></ul></td>
+        </tr>
+
+        <tr>
+          <td rowspan="4">労働関係法規</td>
+          <td>労働基準法</td>
+          <td><ul><li>労働条件の原則</li><li>労働時間、休憩、休日、年次有給休暇等</li></ul></td>
+        </tr>
+        <tr>
+          <td>労働安全衛生法</td>
+          <td><ul><li>労働安全衛生法の目的</li><li>健康管理の仕組み</li><li>健康診断</li></ul></td>
+        </tr>
+        <tr>
+          <td>雇用保険法</td>
+          <td><ul><li>雇用保険法の目的</li><li>給付制度の概要</li></ul></td>
+        </tr>
+        <tr>
+          <td>労働者災害補償保険法</td>
+          <td><ul><li>労働者災害補償保険法の目的</li><li>給付制度の概要</li></ul></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<section>
+  <h2>別表2　文化論</h2>
+  <div class="table-wrap">
+    <table class="detail-table">
+      <thead>
+        <tr><th>大項目</th><th>中項目</th><th>小項目</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td rowspan="8">日本のファッション文化史</td>
+          <td rowspan="4">1　髪型</td>
+          <td><strong>① 明治時代</strong><br>断髪令と髪型<br>理髪用具の国産化と髪型</td>
+        </tr>
+        <tr><td><strong>② 大正時代</strong><br>日常生活の西洋化</td></tr>
+        <tr><td><strong>③ 昭和時代（戦前）</strong><br>パーマネントウェーブの導入</td></tr>
+        <tr><td><strong>④ 昭和時代（終戦後）</strong><br>男性髪型の名称<br>女性髪型の名称</td></tr>
+
+        <tr>
+          <td rowspan="4">2　服装</td>
+          <td><strong>① 明治時代</strong><br>洋装のはじまり</td>
+        </tr>
+        <tr><td><strong>② 大正時代</strong><br>男性社員の服装<br>職業婦人の服装</td></tr>
+        <tr><td><strong>③ 昭和時代（戦前）</strong><br>戦時体制と服装</td></tr>
+        <tr><td><strong>④ 昭和時代（終戦後）</strong><br>流行の流れ</td></tr>
+
+        <tr>
+          <td rowspan="2">礼装の種類</td>
+          <td>和装の礼装</td>
+          <td>花嫁の礼装、女性の礼装、準礼装<br>男性の礼装</td>
+        </tr>
+        <tr>
+          <td>洋装の礼装</td>
+          <td>男性の礼装<br>女性の礼装</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+</body>
+</html>

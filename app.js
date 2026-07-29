@@ -1,7 +1,7 @@
 const app=document.getElementById('app');
 const headerBack=document.getElementById('headerBack');
 const headerHome=document.getElementById('headerHome');
-const APP_VERSION='4.0.7';
+const APP_VERSION='4.0.17';
 const PROG_KEY='riyo_v05_prog';
 const BOOKMARK_KEY='riyoshi_lawbook_bookmarks_v1';
 const TODAY_KEY='riyoshi_lawbook_today10_v1';
@@ -32,6 +32,15 @@ const LAW_DEFS=[
   {id:'shop',name:'運営管理',color:'#3f806d',group:'non_law',categories:['shop']},
   {id:'cut',name:'カッティング',color:'#a45d4d',group:'non_law',categories:['cut']},
   {id:'shaving',name:'シェービング',color:'#56768c',group:'non_law',categories:['shaving']}
+];
+const SUBJECT_DEFS=[
+  {id:'regulations',name:'関係法規・制度',color:'#e97824',lawIds:['barber_related','consumer','specified_commercial']},
+  {id:'hygiene',name:'衛生管理',color:'#287c96',lawIds:['disinfection_law','infection','community','health_promotion_act','disinfection','public_health']},
+  {id:'health',name:'保健',color:'#9a6578',lawIds:['skin']},
+  {id:'cosmetic_chemistry',name:'香粧品化学',color:'#8a6b35',lawIds:['cosmetics']},
+  {id:'culture',name:'文化論',color:'#6a709b',lawIds:['history']},
+  {id:'barbering_theory',name:'理容技術理論',color:'#a45d4d',lawIds:['cut','shaving']},
+  {id:'management',name:'運営管理',color:'#3f806d',lawIds:['shop']}
 ];
 const LAW_CATEGORY_IDS=new Set(LAW_DEFS.flatMap(l=>l.categories));
 const LAW_QUESTIONS=QUESTIONS.filter(q=>LAW_CATEGORY_IDS.has(q.category));
@@ -77,7 +86,7 @@ function normaliseProgress(raw){
 let prog=normaliseProgress(readJson(PROG_KEY,{}));
 let bookmarks=new Set((readJson(BOOKMARK_KEY,[])||[]).map(Number).filter(id=>qById.has(id)));
 let textEnlarged=localStorage.getItem(TEXT_KEY)==='1';
-let screen='home',lawIndex=0,articleIndex=0,session=[],sessionIndex=0,sessionAnswers={},sessionSource='today',returnScreen='home',answerNoticeId=null;
+let screen='home',subjectIndex=0,lawIndex=0,articleIndex=0,session=[],sessionIndex=0,sessionAnswers={},sessionSource='today',returnScreen='home',answerNoticeId=null;
 let navigationReady=false,restoringNavigation=false,internalDepth=0;
 
 function articleGroups(){
@@ -125,8 +134,9 @@ function questionsForLaw(law){
   });
 }
 function statsForLaw(law){const qs=questionsForLaw(law),correct=qs.filter(q=>latest(q)==='correct').length,wrong=qs.filter(q=>latest(q)==='wrong').length;return{total:qs.length,correct,wrong,unanswered:qs.length-correct-wrong}}
-function statsForGroup(group){const categories=new Set(LAW_DEFS.filter(l=>l.group===group).flatMap(l=>l.categories)),qs=LAW_QUESTIONS.filter(q=>categories.has(q.category)),correct=qs.filter(q=>latest(q)==='correct').length,wrong=qs.filter(q=>latest(q)==='wrong').length;return{total:qs.length,correct,wrong,unanswered:qs.length-correct-wrong}}
-function totalStats(){const correct=LAW_QUESTIONS.filter(q=>latest(q)==='correct').length,wrong=LAW_QUESTIONS.filter(q=>latest(q)==='wrong').length;return{correct,wrong,total:LAW_QUESTIONS.length}}
+function lawsForSubject(subject){const ids=new Set(subject.lawIds);return laws.map((law,index)=>({law,index})).filter(row=>ids.has(row.law.id))}
+function statsForSubject(subject){const ids=new Set(lawsForSubject(subject).flatMap(row=>questionsForLaw(row.law).map(q=>q.id))),qs=LAW_QUESTIONS.filter(q=>ids.has(q.id)),correct=qs.filter(q=>latest(q)==='correct').length,wrong=qs.filter(q=>latest(q)==='wrong').length;return{total:qs.length,correct,wrong,unanswered:qs.length-correct-wrong}}
+function totalStats(){const correct=LAW_QUESTIONS.filter(q=>latest(q)==='correct').length,wrong=LAW_QUESTIONS.filter(q=>latest(q)==='wrong').length,total=LAW_QUESTIONS.length;return{correct,wrong,unanswered:total-correct-wrong,total}}
 function roundMeta(){const raw=prog.roundProgress;if(raw&&typeof raw==='object'&&!Array.isArray(raw)){raw.total=Math.max(0,Number(raw.total)||0);return raw}return prog.roundProgress={total:Array.isArray(prog.history)?prog.history.length:0}}
 function roundNumber(){return Math.floor(Math.max(0,roundMeta().total-1)/Math.max(1,LAW_QUESTIONS.length))+1}
 function roundNumberForLaw(law){const qs=questionsForLaw(law),total=qs.length;if(!total)return 1;const ids=new Set(qs.map(q=>q.id)),count=(prog.history||[]).filter(row=>ids.has(Number(row.id))).length;return Math.floor(Math.max(0,count-1)/total)+1}
@@ -137,7 +147,7 @@ function lapLabel(value){
   return `${lap}${suffix} lap`;
 }
 function saveProg(){prog=normaliseProgress(prog);writeJson(PROG_KEY,prog)}
-function navigationSnapshot(){return{screen,lawIndex,articleIndex,sessionIds:session.map(q=>q.id),sessionIndex,sessionAnswers,sessionSource,returnScreen,scrollY:window.scrollY}}
+function navigationSnapshot(){return{screen,subjectIndex,lawIndex,articleIndex,sessionIds:session.map(q=>q.id),sessionIndex,sessionAnswers,sessionSource,returnScreen,scrollY:window.scrollY}}
 function commitNavigation(replace=false){
   if(!navigationReady||restoringNavigation)return;
   const nextDepth=replace?internalDepth:internalDepth+1;
@@ -153,13 +163,15 @@ function setScreen(name,preserveScroll=false){
 function restoreNavigationState(saved){
   if(!saved||typeof saved!=='object')return renderHome();
   restoringNavigation=true;
+  subjectIndex=Math.max(0,Math.min(SUBJECT_DEFS.length-1,Number(saved.subjectIndex)||0));
   lawIndex=Math.max(0,Math.min(laws.length-1,Number(saved.lawIndex)||0));
   articleIndex=Math.max(0,Math.min(laws[lawIndex].articles.length-1,Number(saved.articleIndex)||0));
   session=Array.isArray(saved.sessionIds)?saved.sessionIds.map(Number).map(id=>qById.get(id)).filter(Boolean):[];
   sessionIndex=Math.max(0,Math.min(session.length-1,Number(saved.sessionIndex)||0));
   sessionAnswers=saved.sessionAnswers&&typeof saved.sessionAnswers==='object'?saved.sessionAnswers:{};
   sessionSource=saved.sessionSource||'today';returnScreen=saved.returnScreen||'home';
-  if(saved.screen==='law')openLaw(lawIndex);
+  if(saved.screen==='subject')openSubject(subjectIndex);
+  else if(saved.screen==='law')openLaw(lawIndex);
   else if(saved.screen==='article')openArticle(articleIndex,returnScreen);
   else if(saved.screen==='question'&&session.length)renderQuestion();
   else if(saved.screen==='result'&&session.length)renderResult();
@@ -170,24 +182,27 @@ function restoreNavigationState(saved){
 }
 function head(title){return `<div class="view-head"><span></span><h2>${esc(title)}</h2><span></span></div>`}
 function renderHome(){
-  setScreen('home');const all=totalStats(),rate=all.total?Math.round(all.correct/all.total*100):0,lawStats=statsForGroup('law'),nonLawStats=statsForGroup('non_law'),daily=todaySessionState(),todayTitle=daily.completed?'本日完了':'今日の10問',todayCaption=daily.completed?`本日 ${daily.completedTotal}問 解答済み`:daily.total?`${daily.answered}／${daily.total}問 解答済み`:'毎日の法令確認';
+  setScreen('home');const all=totalStats(),rate=all.total?Math.round(all.correct/all.total*100):0,correctRate=all.total?all.correct/all.total*100:0,wrongRate=all.total?all.wrong/all.total*100:0,unansweredRate=all.total?all.unanswered/all.total*100:100,daily=todaySessionState(),todayTitle=daily.completed?'本日完了':'今日の10問',todayCaption=daily.completed?`本日 ${daily.completedTotal}問 解答済み`:daily.total?`${daily.answered}／${daily.total}問 解答済み`:'毎日の法令確認';
   app.innerHTML=`<section class="home-card progress-card">
     <div class="lap-count">${lapLabel(roundNumber())}</div>
     <div class="progress-ring" style="--rate:${rate}%"><span>${rate}%</span></div>
     <div class="progress-summary"><h2>学習状況</h2>
-      ${progressBarHtml('法令問題',lawStats)}
-      ${progressBarHtml('法令以外',nonLawStats)}
+      <p>正答 ${all.correct}／${all.total}問</p>
+      <div class="home-result-bar" role="img" aria-label="正答 ${all.correct}問、誤答 ${all.wrong}問、未回答 ${all.unanswered}問"><i class="correct" style="width:${correctRate}%"></i><i class="wrong" style="width:${wrongRate}%"></i><i class="unanswered" style="width:${unansweredRate}%"></i></div>
+      <div class="home-result-legend"><span class="correct">正答 ${all.correct}</span><span class="wrong">誤答 ${all.wrong}</span><span class="unanswered">未回答 ${all.unanswered}</span></div>
     </div></section>
     <div class="today-wrap"><button class="today-start" onclick="LawBook.startToday()"><span class="check">✓</span><span><strong>${todayTitle}</strong><small>${todayCaption}</small></span></button><button class="today-bookmarks" onclick="LawBook.openBookmarks()"><span>🔖</span><span class="count">${bookmarks.size}</span></button></div>
-    ${lawGroupHtml('法令一覧','law')}
-    ${lawGroupHtml('法令以外','non_law')}
+    <div class="section-title-row"><h2 class="section-title">筆記試験科目</h2><a class="exam-guide-link" href="./preview.html">新制度による筆記試験実施要領</a></div>
+    <section class="subject-list">${SUBJECT_DEFS.map(subjectEntryHtml).join('')}</section>
     <section class="utility-actions"><button onclick="LawBook.exportBackup()">バックアップを書き出す</button><button onclick="document.getElementById('backupInput').click()">バックアップを読み込む</button><input id="backupInput" type="file" accept="application/json,.json" hidden onchange="LawBook.importBackup(this.files[0]);this.value=''"></section>
     <div class="reset-row"><button onclick="LawBook.resetAll()">リセット</button></div>
     <section class="setting-card"><span>文字を拡大</span><button class="toggle${textEnlarged?' is-on':''}" type="button" role="switch" aria-checked="${textEnlarged}" onclick="LawBook.toggleText()"><span class="toggle-state">${textEnlarged?'ON':'OFF'}</span><span class="toggle-knob" aria-hidden="true"></span></button></section>
     <div class="version">Version ${APP_VERSION}</div>`;
 }
 function progressBarHtml(label,stats){const cp=stats.total?stats.correct/stats.total*100:0,wp=stats.total?stats.wrong/stats.total*100:0;return `<div class="overall-stat"><div class="law-stat-head"><span>${label}</span><span>${stats.correct}／${stats.total}</span></div><div class="stacked-bar"><i class="correct" style="width:${cp}%"></i><i class="wrong" style="width:${wp}%"></i></div><div class="bar-legend"><span class="legend-correct">正答 ${stats.correct}</span><span class="legend-wrong">誤答 ${stats.wrong}</span><span class="legend-unanswered">未解答 ${stats.unanswered}</span></div></div>`}
-function lawGroupHtml(title,group){return `<h2 class="section-title${group==='non_law'?' non-law-title':''}">${title}</h2><section class="law-list">${laws.map((l,i)=>({l,i})).filter(row=>row.l.group===group).map(({l,i})=>{const s=statsForLaw(l),cp=s.total?s.correct/s.total*100:0,wp=s.total?s.wrong/s.total*100:0,label=l.group==='law'?'条文':'項目';return `<div class="law-entry" style="--law-color:${l.color}"><button class="law-button" onclick="LawBook.openLaw(${i})"><span><strong>${esc(l.name)}</strong><small>${l.articles.length}${label}・関連問題 ${s.total}問</small></span><span class="law-lap">${lapLabel(roundNumberForLaw(l))}</span></button><div class="law-progress"><div class="law-stat-head"><span>最新解答結果</span><span>${s.correct}／${s.total}</span></div><div class="stacked-bar"><i class="correct" style="width:${cp}%"></i><i class="wrong" style="width:${wp}%"></i></div></div></div>`}).join('')}</section>`}
+function subjectEntryHtml(subject,index){const s=statsForSubject(subject),cp=s.total?s.correct/s.total*100:0,wp=s.total?s.wrong/s.total*100:0;return `<div class="subject-entry" style="--subject-color:${subject.color}"><div class="subject-button"><button class="subject-main" onclick="LawBook.openSubject(${index})"><span><strong>${esc(subject.name)}</strong><small>${subject.lawIds.length}項目・関連問題 ${s.total}問</small></span></button><button class="subject-question" onclick="LawBook.startSubjectQuestions(${index})">問題</button><button class="subject-arrow" aria-label="${esc(subject.name)}を開く" onclick="LawBook.openSubject(${index})"><span class="arrow">›</span></button></div><div class="subject-progress"><div class="law-stat-head"><span>最新解答結果</span><span>${s.correct}／${s.total}</span></div><div class="stacked-bar"><i class="correct" style="width:${cp}%"></i><i class="wrong" style="width:${wp}%"></i></div></div></div>`}
+function lawEntryHtml(l,i){const s=statsForLaw(l),cp=s.total?s.correct/s.total*100:0,wp=s.total?s.wrong/s.total*100:0,label=l.group==='law'?'条文':'項目';return `<div class="law-entry" style="--law-color:${l.color}"><button class="law-button" onclick="LawBook.openLaw(${i})"><span><strong>${esc(l.name)}</strong><small>${l.articles.length}${label}・関連問題 ${s.total}問</small></span><span class="law-lap">${lapLabel(roundNumberForLaw(l))}</span></button><div class="law-progress"><div class="law-stat-head"><span>最新解答結果</span><span>${s.correct}／${s.total}</span></div><div class="stacked-bar"><i class="correct" style="width:${cp}%"></i><i class="wrong" style="width:${wp}%"></i></div></div></div>`}
+function openSubject(index){subjectIndex=index;setScreen('subject');const subject=SUBJECT_DEFS[index];app.innerHTML=`${head(subject.name)}<section class="law-list">${lawsForSubject(subject).map(({law,index:lawPosition})=>lawEntryHtml(law,lawPosition)).join('')}</section>`}
 function openLaw(index){lawIndex=index;setScreen('law');const law=laws[index];app.innerHTML=`${head(law.name)}${law.relatedLawId?`<button class="secondary-button law-related-link" onclick="LawBook.openRelatedLaw('${law.relatedLawId}')">${esc(law.relatedLabel)}</button>`:''}<section class="law-list" style="--law-color:${law.color}">${law.articles.map((a,i)=>`<button class="article-button" onclick="LawBook.openArticle(${i})"><span><strong>${esc(a.reference)}</strong><small>関連問題 ${a.questionIds.length}問</small></span><span class="arrow">›</span></button>`).join('')}</section>`}
 function openRelatedLaw(id){const index=laws.findIndex(law=>law.id===id);if(index>=0)openLaw(index)}
 function removeFinalPeriod(text){return String(text||'').replace(/[。．](?=\s*(?:\n|$))/g,'')}
@@ -303,6 +318,20 @@ function openArticle(index,from='law'){articleIndex=index;returnScreen=from;setS
   </div></details>
   <nav class="article-navigation" aria-label="条文の移動"><button onclick="LawBook.moveArticle(-1)" ${index===0?'disabled':''}>＜前へ</button><button class="article-question-button" onclick="LawBook.startRelated()" ${a.questionIds.length?'':'disabled'}>問題へ</button><button onclick="LawBook.moveArticle(1)" ${index===law.articles.length-1?'disabled':''}>次へ＞</button></nav>`}
 function moveArticle(step){const next=articleIndex+step;if(next>=0&&next<laws[lawIndex].articles.length)openArticle(next,returnScreen)}
+let articleSwipeStart=null;
+app.addEventListener('touchstart',event=>{
+  if(screen!=='article'||event.touches.length!==1||event.target.closest('button,a,input,select,textarea,summary')){articleSwipeStart=null;return}
+  const touch=event.touches[0];
+  articleSwipeStart={x:touch.clientX,y:touch.clientY};
+},{passive:true});
+app.addEventListener('touchend',event=>{
+  if(screen!=='article'||!articleSwipeStart||event.changedTouches.length!==1){articleSwipeStart=null;return}
+  const touch=event.changedTouches[0],dx=touch.clientX-articleSwipeStart.x,dy=touch.clientY-articleSwipeStart.y;
+  articleSwipeStart=null;
+  if(Math.abs(dx)<60||Math.abs(dx)<=Math.abs(dy)*1.5)return;
+  moveArticle(dx<0?1:-1);
+},{passive:true});
+app.addEventListener('touchcancel',()=>{articleSwipeStart=null},{passive:true});
 function statusOf(q){const s=prog.answerStats?.[q.id];if(!s||!s.try)return'unlearned';return latest(q)==='wrong'?'review':'safe'}
 function todaySessionState(){
   const raw=readJson(TODAY_KEY,{}),validDate=raw.date===today(),ids=validDate&&Array.isArray(raw.ids)?raw.ids.map(Number).filter(id=>qById.has(id)).slice(0,10):[],completedIds=validDate&&Array.isArray(raw.completedIds)?Array.from(new Set(raw.completedIds.map(Number).filter(id=>qById.has(id)&&!ids.includes(id)))):[],answers={};
@@ -345,6 +374,12 @@ function startNextToday(){
 }
 function hasNextTodaySet(){const current=todaySessionState(),excluded=new Set([...current.completedIds,...current.ids]);return LAW_QUESTIONS.some(q=>!excluded.has(q.id))}
 function startRelated(){const ids=laws[lawIndex].articles[articleIndex].questionIds;startSession(ids,'related','article')}
+function startSubjectQuestions(index){
+  const subject=SUBJECT_DEFS[index];if(!subject)return;
+  subjectIndex=index;
+  const ids=new Set(lawsForSubject(subject).flatMap(({law})=>questionsForLaw(law).map(q=>q.id)));
+  startSession(LAW_QUESTIONS.filter(q=>ids.has(q.id)).map(q=>q.id),'subject','home');
+}
 function startSession(ids,source='today',backTo='home'){
   session=ids.map(Number).map(id=>qById.get(id)).filter(Boolean);if(!session.length){alert('対象の問題はありません。');return}
   sessionIndex=0;sessionAnswers={};sessionSource=source;returnScreen=backTo;answerNoticeId=null;renderQuestion();
@@ -356,7 +391,7 @@ function renderQuestion({preserveScroll=false}={}){
   <article class="question-card"><button class="question-bookmark${bookmarks.has(q.id)?' is-on':''}" onclick="LawBook.toggleBookmark(${q.id})">🔖</button><span class="question-number">問題 ${q.id}</span><h2>${esc(q.q)}</h2>
   <div class="choices">${q.choices.map((choice,i)=>`<button class="choice${answer?(i===q.answer?' correct':i===answer.choice?' wrong':''):''}" ${answer?'disabled':''} onclick="LawBook.answer(${i})">${i+1}．${esc(choice)}</button>`).join('')}</div>
   ${answer?`<section class="answer-box"><h3>${answer.ok?'正解':'不正解'}・解説</h3><div class="answer-explanation">${formatAnswerExplanation(q)}</div><button class="secondary-button" onclick="LawBook.openSourceArticle(${q.id})">根拠条文を確認する</button></section>`:''}</article>
-  <nav class="question-nav"><span class="question-nav-progress">${sessionIndex+1}／${session.length}問</span><button onclick="LawBook.previousQuestion()" ${sessionIndex===0?'disabled':''}>＜前へ</button><button onclick="LawBook.nextQuestion()" ${answer?'':'disabled'}>${sessionIndex===session.length-1?'結果を見る＞':'次へ＞'}</button></nav>`;
+  <nav class="question-nav"><span class="question-nav-progress">${sessionIndex+1}／${session.length}問</span><button onclick="LawBook.previousQuestion()" ${sessionIndex===0?'disabled':''}>＜前へ</button><button onclick="LawBook.nextQuestion()">${sessionIndex===session.length-1?'結果を見る＞':'次へ＞'}</button></nav>`;
   if(preserveScroll)requestAnimationFrame(()=>window.scrollTo(0,savedScroll));
 }
 function updateProgressStat(target,key,ok){target[key]=target[key]||{try:0,ok:0};target[key].try++;if(ok)target[key].ok++}
@@ -383,8 +418,8 @@ function record(q,ok,choiceIndex){
 }
 function answer(index){const q=session[sessionIndex];if(sessionAnswers[q.id])return;const ok=index===q.answer;sessionAnswers[q.id]={choice:index,ok};answerNoticeId=q.id;record(q,ok,index);saveTodaySession();renderQuestion({preserveScroll:true})}
 function previousQuestion(){if(sessionIndex>0){answerNoticeId=null;sessionIndex--;saveTodaySession();renderQuestion()}}
-function nextQuestion(){const q=session[sessionIndex];if(!sessionAnswers[q.id])return;answerNoticeId=null;if(sessionIndex<session.length-1){sessionIndex++;saveTodaySession();renderQuestion()}else renderResult()}
-function renderResult(){answerNoticeId=null;saveTodaySession();setScreen('result');const rows=session.map(q=>({q,a:sessionAnswers[q.id]})),ok=rows.filter(x=>x.a?.ok).length,wrong=rows.filter(x=>x.a&&!x.a.ok);app.innerHTML=`${head('結果')}<section class="result-card"><div class="result-totals"><div><strong>${ok}</strong>正答</div><div><strong>${wrong.length}</strong>誤答</div></div><div class="result-list">${rows.map(x=>`<div class="result-row"><span class="${x.a?.ok?'ok':'ng'}">${x.a?.ok?'○':'×'}</span><span>問題 ${x.q.id}　${esc(x.q.q.replace(/\s+/g,' ').slice(0,48))}</span></div>`).join('')}</div>${wrong.length?`<button class="primary-button" onclick="LawBook.retryWrong()">誤答だけ解き直す</button>`:''}${sessionSource==='today'&&hasNextTodaySet()?'<button class="primary-button" onclick="LawBook.startNextToday()">次の10問へ</button>':''}<button class="secondary-button" onclick="LawBook.openBookmarks()">ブックマークした問題を確認する</button><button class="secondary-button" onclick="LawBook.home()">ホームに戻る</button></section>`}
+function nextQuestion(){answerNoticeId=null;if(sessionIndex<session.length-1){sessionIndex++;saveTodaySession();renderQuestion()}else renderResult()}
+function renderResult(){answerNoticeId=null;saveTodaySession();setScreen('result');const rows=session.map(q=>({q,a:sessionAnswers[q.id]})),ok=rows.filter(x=>x.a?.ok).length,wrong=rows.filter(x=>x.a&&!x.a.ok),unanswered=rows.filter(x=>!x.a).length;app.innerHTML=`${head('結果')}<section class="result-card"><div class="result-totals"><div><strong>${ok}</strong>正答</div><div><strong>${wrong.length}</strong>誤答</div>${unanswered?`<div><strong>${unanswered}</strong>未回答</div>`:''}</div><div class="result-list">${rows.map(x=>`<div class="result-row"><span class="${x.a?(x.a.ok?'ok':'ng'):''}">${x.a?(x.a.ok?'○':'×'):'－'}</span><span>問題 ${x.q.id}　${esc(x.q.q.replace(/\s+/g,' ').slice(0,48))}</span></div>`).join('')}</div>${wrong.length?`<button class="primary-button" onclick="LawBook.retryWrong()">誤答だけ解き直す</button>`:''}${sessionSource==='today'&&hasNextTodaySet()?'<button class="primary-button" onclick="LawBook.startNextToday()">次の10問へ</button>':''}<button class="secondary-button" onclick="LawBook.openBookmarks()">ブックマークした問題を確認する</button><button class="secondary-button" onclick="LawBook.home()">ホームに戻る</button></section>`}
 function retryWrong(){const ids=session.filter(q=>sessionAnswers[q.id]&&!sessionAnswers[q.id].ok).map(q=>q.id);startSession(ids,'retry','result')}
 function toggleBookmark(id){id=Number(id);bookmarks.has(id)?bookmarks.delete(id):bookmarks.add(id);writeJson(BOOKMARK_KEY,[...bookmarks]);if(screen==='question')renderQuestion();else if(screen==='bookmarks')openBookmarks();else renderHome()}
 function findArticleForQuestion(id){for(let li=0;li<laws.length;li++){for(let ai=0;ai<laws[li].articles.length;ai++)if(laws[li].articles[ai].questionIds.includes(Number(id)))return{li,ai}}return null}
@@ -411,7 +446,7 @@ function openLegacyRoute(){
     const index=laws.findIndex(law=>law.id===id);if(index>=0){openLaw(index);return}
   }
 }
-const LawBook={home,back,openLaw,openRelatedLaw,openArticle,moveArticle,startToday,startNextToday,startRelated,answer,previousQuestion,nextQuestion,retryWrong,toggleBookmark,openBookmarks,openSourceArticle,exportBackup,importBackup,resetAll,toggleText};
+const LawBook={home,back,openSubject,openLaw,openRelatedLaw,openArticle,moveArticle,startToday,startNextToday,startRelated,startSubjectQuestions,answer,previousQuestion,nextQuestion,retryWrong,toggleBookmark,openBookmarks,openSourceArticle,exportBackup,importBackup,resetAll,toggleText};
 window.LawBook=LawBook;
 document.body.classList.toggle('text-enlarged',textEnlarged);
 renderHome();
